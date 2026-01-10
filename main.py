@@ -18,7 +18,8 @@ from config import bot_token, admin_ids, admin_id, DB_FILE
 from config import setup_logging  # Optional
 import os
 from threading import Thread
-from flask import Flask, Response
+from flask import Flask, request, Response  # Add this
+
 
 # Setup logging
 setup_logging()
@@ -4591,40 +4592,117 @@ def admin_check_help(message: types.Message):
     )
     bot.send_message(message.chat.id, help_text, parse_mode="HTML")
 
-def create_health_server():
-    """Create a simple HTTP server for Railway health checks - FIXED"""
-    app = Flask(__name__)
-    
-    @app.route('/')
-    def health_check():
-        return Response("Bot is running", status=200)
-    
-    @app.route('/health')
-    def health():
-        return Response("OK", status=200)
-    
-    @app.route('/favicon.ico')
-    def favicon():
-        return '', 204  # No content
-    
-    port = int(os.getenv('PORT', 8080))
-    
-    # CRITICAL FIX: Disable ALL reloading features
-    Thread(
-        target=lambda: app.run(
-            host='0.0.0.0', 
-            port=port, 
-            debug=False, 
-            use_reloader=False,  # Already set
-            threaded=True,  # Add this
-            processes=1  # Force single process
-        )
-    ).start()
-    
-    return app
+# ----------------------------
+# ====================
+# RAILWAY WEBHOOK SETUP
+# ====================
+from flask import Flask, request, Response
+import os
+
+# Create Flask app for Railway
+app = Flask(__name__)
+
+# Health check endpoint for Railway
+@app.route('/')
+def health_check():
+    return '🤖 BlockchainPlus Hub Bot is running!', 200
+
+@app.route('/health')
+def health():
+    return {'status': 'healthy', 'bot': 'running'}, 200
+
+# Webhook endpoint for Telegram
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Bad request', 400
+
+def set_webhook():
+    """Set webhook for Railway deployment"""
+    try:
+        # Get Railway URL from environment
+        RAILWAY_URL = os.environ.get('RAILWAY_STATIC_URL', '')
+        
+        if RAILWAY_URL:
+            webhook_url = f"{RAILWAY_URL}/webhook"
+            logger.info(f"Setting webhook to: {webhook_url}")
+            
+            # Remove any existing webhook first
+            bot.remove_webhook()
+            time.sleep(1)
+            
+            # Set new webhook
+            bot.set_webhook(
+                url=webhook_url,
+                max_connections=50,
+                allowed_updates=["message", "callback_query"]
+            )
+            logger.info("✅ Webhook set successfully")
+        else:
+            logger.warning("⚠️ RAILWAY_STATIC_URL not set. Webhook not configured.")
+            
+    except Exception as e:
+        logger.error(f"❌ Error setting webhook: {e}")
+
+# ====================
+# RAILWAY WEBHOOK SETUP
+# ====================
+
+# Create Flask app for Railway
+app = Flask(__name__)
+
+# Health check endpoint for Railway
+@app.route('/')
+def health_check():
+    return '🤖 BlockchainPlus Hub Bot is running!', 200
+
+@app.route('/health')
+def health():
+    return {'status': 'healthy', 'bot': 'running'}, 200
+
+# Webhook endpoint for Telegram
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Bad request', 400
+
+def set_webhook():
+    """Set webhook for Railway deployment"""
+    try:
+        # Get Railway URL from environment
+        RAILWAY_URL = os.environ.get('RAILWAY_STATIC_URL', '')
+        
+        if RAILWAY_URL:
+            webhook_url = f"{RAILWAY_URL}/webhook"
+            logger.info(f"Setting webhook to: {webhook_url}")
+            
+            # Remove any existing webhook first
+            bot.remove_webhook()
+            time.sleep(1)
+            
+            # Set new webhook
+            bot.set_webhook(
+                url=webhook_url,
+                max_connections=50,
+                allowed_updates=["message", "callback_query"]
+            )
+            logger.info("✅ Webhook set successfully")
+        else:
+            logger.warning("⚠️ RAILWAY_STATIC_URL not set. Webhook not configured.")
+            
+    except Exception as e:
+        logger.error(f"❌ Error setting webhook: {e}")
 
 # ----------------------------
-# Bot Startup with Scheduler
+# Bot Startup with Scheduler & Webhook
 # ----------------------------
 if __name__ == "__main__":
     logger.info("=" * 50)
@@ -4638,13 +4716,12 @@ if __name__ == "__main__":
         logger.info("Starting scheduler for automated reminders...")
         scheduler.add_job(
             check_expiring_subscriptions,
-            trigger=CronTrigger(hour=9, minute=0),  # Run daily at 9:00 AM
+            trigger=CronTrigger(hour=9, minute=0),
             id='daily_expiry_check',
             name='Daily subscription expiry check',
             replace_existing=True
         )
         
-        # Also run every 6 hours for better coverage
         scheduler.add_job(
             check_expiring_subscriptions,
             trigger='interval',
@@ -4663,8 +4740,6 @@ if __name__ == "__main__":
         bot_info = bot.get_me()
         logger.info(f"Bot connected: @{bot_info.username} (ID: {bot_info.id})")
         
-        # Database integrity is already verified in UserDatabase.__init__()
-        # Get database stats after verification
         db_stats = user_db.get_database_stats()
         logger.info(f"Database stats - Users: {db_stats.get('total_users', 0)}, "
                    f"Affiliates: {db_stats.get('total_affiliates', 0)}, "
@@ -4675,31 +4750,29 @@ if __name__ == "__main__":
             try:
                 bot.send_message(
                     admin_id,
-                    f"🤖 Bot restarted successfully with FIXED ADMIN AFFILIATE MANAGEMENT!\n\n"
+                    f"🤖 Bot restarted successfully with WEBHOOK for Railway!\n\n"
                     f"<b>Database Status:</b>\n"
                     f"• Users: {db_stats.get('total_users', 0)}\n"
                     f"• Affiliates: {db_stats.get('total_affiliates', 0)}\n"
                     f"• Active Subscriptions: {db_stats.get('active_subscriptions', 0)}\n"
                     f"• Total Commissions: ₦{db_stats.get('total_commissions', 0):,.2f}\n\n"
-                    f"✅ Admin Affiliate Management fully fixed!\n"
-                    f"✅ Export to CSV functions working\n"
-                    f"✅ Monthly/Weekly reports working\n"
-                    f"✅ All buttons now functional",
+                    f"✅ Using webhooks for Railway deployment",
                     parse_mode='HTML'
                 )
             except Exception as e:
                 logger.error(f"Could not send startup message to admin {admin_id}: {e}")
         
-        logger.info("Starting bot polling...")
-        health_app = create_health_server()
-        logger.info(f"Health server started on port {os.getenv('PORT', 8080)}")
+        # Set webhook for Railway
+        set_webhook()
         
-        bot.infinity_polling(timeout=60, long_polling_timeout=30)
+        # Start Flask app for Railway
+        port = int(os.environ.get('PORT', 8443))
+        logger.info(f"Starting Flask webhook server on port {port}")
+        app.run(host='0.0.0.0', port=port, debug=False)
         
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")
         logger.error(traceback.format_exc())
-        # Shutdown scheduler on error
         try:
             scheduler.shutdown()
         except:
