@@ -4592,7 +4592,7 @@ def admin_check_help(message: types.Message):
     bot.send_message(message.chat.id, help_text, parse_mode="HTML")
 
 def create_health_server():
-    """Create a simple HTTP server for Railway health checks"""
+    """Create a simple HTTP server for Railway health checks - FIXED"""
     app = Flask(__name__)
     
     @app.route('/')
@@ -4603,8 +4603,24 @@ def create_health_server():
     def health():
         return Response("OK", status=200)
     
+    @app.route('/favicon.ico')
+    def favicon():
+        return '', 204  # No content
+    
     port = int(os.getenv('PORT', 8080))
-    Thread(target=lambda: app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)).start()
+    
+    # CRITICAL FIX: Disable ALL reloading features
+    Thread(
+        target=lambda: app.run(
+            host='0.0.0.0', 
+            port=port, 
+            debug=False, 
+            use_reloader=False,  # Already set
+            threaded=True,  # Add this
+            processes=1  # Force single process
+        )
+    ).start()
+    
     return app
 
 # ----------------------------
