@@ -14,6 +14,12 @@ class UserDatabase:
         
         # Initialize empty database structure
         self.db = self._create_empty_db()
+
+        # Initialize users as empty dictionary
+        self.users = {} 
+        self.affiliates = {}  # Initialize affiliates dict
+        self.payouts = []  # Initialize payouts list
+        self.commissions = {}  # Initialize commissions dict
         
         # Load existing database
         self._load_database()
