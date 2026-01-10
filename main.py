@@ -16,6 +16,9 @@ from database import UserDatabase
 import logging
 from config import bot_token, admin_ids, admin_id, DB_FILE
 from config import setup_logging  # Optional
+import os
+from threading import Thread
+from flask import Flask, Response
 
 # Setup logging
 setup_logging()
@@ -4588,6 +4591,22 @@ def admin_check_help(message: types.Message):
     )
     bot.send_message(message.chat.id, help_text, parse_mode="HTML")
 
+def create_health_server():
+    """Create a simple HTTP server for Railway health checks"""
+    app = Flask(__name__)
+    
+    @app.route('/')
+    def health_check():
+        return Response("Bot is running", status=200)
+    
+    @app.route('/health')
+    def health():
+        return Response("OK", status=200)
+    
+    port = int(os.getenv('PORT', 8080))
+    Thread(target=lambda: app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)).start()
+    return app
+
 # ----------------------------
 # Bot Startup with Scheduler
 # ----------------------------
@@ -4656,6 +4675,9 @@ if __name__ == "__main__":
                 logger.error(f"Could not send startup message to admin {admin_id}: {e}")
         
         logger.info("Starting bot polling...")
+        health_app = create_health_server()
+        logger.info(f"Health server started on port {os.getenv('PORT', 8080)}")
+        
         bot.infinity_polling(timeout=60, long_polling_timeout=30)
         
     except Exception as e:
