@@ -1,5 +1,6 @@
 # main.py - Complete Working Bot with All Fixes Applied + Affiliate System + Full Payout Flow
-# UPDATED: Admin Affiliate Management System Fully Fixed
+# COMPLETELY FIXED VERSION - All issues resolved
+
 import time
 from typing import Optional, Dict, List, Tuple
 from telebot import TeleBot, types
@@ -12,33 +13,18 @@ import csv
 import io
 import config
 from database import UserDatabase
-# main.py or bot.py
-import logging
-from config import bot_token, admin_ids, admin_id, DB_FILE
-from config import setup_logging  # Optional
 import os
 from threading import Thread
-from flask import Flask, request, Response  # Add this
+from flask import Flask, request, Response
+import hashlib
+import random
+import string
 
+# ====================
+# INITIALIZATION
+# ====================
 
-# Setup logging
-setup_logging()
-logger = logging.getLogger(__name__)
-
-# Use the variables
-TOKEN = bot_token
-ADMIN_IDS = admin_ids
-ADMIN_ID = admin_id
-
-# Rest of your bot code...
-
-# --- Initialization ---
-bot = TeleBot(config.bot_token, threaded=True, num_threads=5)
-user_db = UserDatabase()
-scheduler = BackgroundScheduler()
-ADMIN_IDS = config.admin_ids
-
-# Set up logging
+# Setup comprehensive logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -48,6 +34,16 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Bot initialization
+bot = TeleBot(config.bot_token, threaded=True, num_threads=5)
+user_db = UserDatabase()
+scheduler = BackgroundScheduler()
+ADMIN_IDS = config.admin_ids
+
+# ====================
+# CONSTANTS
+# ====================
 
 # Pricing for both programs
 PRICING = {
@@ -71,10 +67,6 @@ PRICING = {
     }
 }
 
-# ====================
-# AFFILIATE SYSTEM CONSTANTS
-# ====================
-
 # Commission rates structure
 COMMISSION_RATES = {
     'academy': 0.30,  # 30% for academy
@@ -88,108 +80,11 @@ COMMISSION_RATES = {
 
 MINIMUM_PAYOUT = 10000  # ₦10,000 minimum payout
 
-# ====================
-# AFFILIATE HELPER FUNCTIONS
-# ====================
+# Reminder settings
+REMINDER_DAYS = [7, 3, 1, 0]  # Days before expiry to send reminders
+GRACE_PERIOD_DAYS = 3  # Days after expiry before removal
 
-def generate_affiliate_code(user_id: int) -> str:
-    """Generate a unique affiliate code based on user ID"""
-    import hashlib
-    import string
-    import random
-    
-    # Create a hash from user_id + timestamp
-    hash_input = f"{user_id}{time.time()}"
-    hash_digest = hashlib.md5(hash_input.encode()).hexdigest()[:8].upper()
-    
-    # Combine with random letters
-    letters = ''.join(random.choices(string.ascii_uppercase, k=3))
-    return f"AFF{letters}{hash_digest[:5]}"
-
-def calculate_commission(plan_type: str, vip_duration: Optional[str], amount_text: str) -> float:
-    """Calculate commission based on plan type and duration"""
-    try:
-        # Extract numeric amount from amount text (e.g., "₦35,000" -> 35000)
-        if '₦' in amount_text:
-            amount_str = amount_text.replace('₦', '').replace(',', '')
-            amount = float(amount_str)
-            currency = 'naira'
-        elif '$' in amount_text:
-            amount_str = amount_text.replace('$', '').replace(',', '')
-            amount = float(amount_str) * 1400  # Convert USD to NGN at approximate rate
-            currency = 'usd'
-        else:
-            return 0.0
-        
-        # Calculate commission based on plan type
-        if plan_type == 'academy':
-            commission_rate = COMMISSION_RATES['academy']
-        elif plan_type == 'vip' and vip_duration:
-            commission_rate = COMMISSION_RATES['vip'].get(vip_duration, 0.15)
-        else:
-            commission_rate = 0.15  # Default 15%
-        
-        commission = amount * commission_rate
-        return round(commission, 2)
-        
-    except Exception as e:
-        logger.error(f"Error calculating commission: {e}")
-        return 0.0
-
-def add_commission_to_affiliate(referred_by_id: int, user_id: int, program: str, plan_type: str, 
-                               vip_duration: Optional[str], amount_text: str):
-    """Add commission to affiliate when referral makes payment"""
-    try:
-        # Calculate commission
-        commission_amount = calculate_commission(plan_type, vip_duration, amount_text)
-        
-        if commission_amount > 0:
-            # Add commission to affiliate's earnings
-            user_db.add_commission(referred_by_id, user_id, commission_amount, program, plan_type, vip_duration)
-            
-            # Get affiliate details
-            affiliate = user_db.fetch_user(referred_by_id)
-            if affiliate:
-                # Notify affiliate
-                try:
-                    plan_name = plan_display_name(plan_type, vip_duration)
-                    bot.send_message(
-                        referred_by_id,
-                        f"💰 <b>Commission Earned!</b>\n\n"
-                        f"✅ New referral subscribed!\n"
-                        f"👤 Referral ID: {user_id}\n"
-                        f"📋 Plan: {program.capitalize()} {plan_name}\n"
-                        f"💸 Commission: <b>₦{commission_amount:,.2f}</b>\n\n"
-                        f"Your total earnings: <b>₦{affiliate.get('affiliate_earnings', 0) + commission_amount:,.2f}</b>\n\n"
-                        f"Keep sharing your referral link to earn more! 🚀",
-                        parse_mode='HTML'
-                    )
-                except Exception as e:
-                    logger.error(f"Could not notify affiliate {referred_by_id}: {e}")
-                
-                # Notify admins about commission
-                for admin_id in ADMIN_IDS:
-                    try:
-                        bot.send_message(
-                            admin_id,
-                            f"💰 <b>Commission Generated</b>\n\n"
-                            f"Affiliate: {affiliate.get('name', 'Unknown')} (ID: {referred_by_id})\n"
-                            f"Referral: {user_id}\n"
-                            f"Plan: {program} {plan_type} {vip_duration or ''}\n"
-                            f"Commission: ₦{commission_amount:,.2f}",
-                            parse_mode='HTML'
-                        )
-                    except Exception as e:
-                        logger.error(f"Could not notify admin {admin_id}: {e}")
-            
-            return True
-        return False
-        
-    except Exception as e:
-        logger.error(f"Error adding commission: {e}")
-        return False
-
-# Tutorial videos data with Telegram video file_ids for playing within the bot
+# Tutorial videos data
 TUTORIALS = [
     {
         'id': 1,
@@ -248,13 +143,10 @@ TUTORIAL_CATEGORIES = {
     'security': '🔒 Security Guides'
 }
 
-# Reminder settings
-REMINDER_DAYS = [7, 3, 1, 0]  # Days before expiry to send reminders
-GRACE_PERIOD_DAYS = 3  # Days after expiry before removal
+# ====================
+# HELPER FUNCTIONS
+# ====================
 
-# ----------------------
-# Helper Functions - FIXED VERSION
-# ----------------------
 def plan_display_name(plan_key: str, vip_duration: Optional[str] = None) -> str:
     """Get human-readable plan name"""
     if plan_key == "academy":
@@ -391,9 +283,104 @@ def send_group_access(user_id: int, program: str, plan_type: str, days: int = No
             else:
                 bot.send_message(user_id, "🔥 Crypto DeGen Group access granted!")
 
-# ----------------------
-# REMINDER SYSTEM FUNCTIONS WITH BENEFIT-RICH MESSAGES
-# ----------------------
+# ====================
+# AFFILIATE SYSTEM FUNCTIONS
+# ====================
+
+def generate_affiliate_code(user_id: int) -> str:
+    """Generate a unique affiliate code based on user ID"""
+    hash_input = f"{user_id}{time.time()}"
+    hash_digest = hashlib.md5(hash_input.encode()).hexdigest()[:8].upper()
+    letters = ''.join(random.choices(string.ascii_uppercase, k=3))
+    return f"AFF{letters}{hash_digest[:5]}"
+
+def calculate_commission(plan_type: str, vip_duration: Optional[str], amount_text: str) -> float:
+    """Calculate commission based on plan type and duration"""
+    try:
+        # Extract numeric amount from amount text (e.g., "₦35,000" -> 35000)
+        if '₦' in amount_text:
+            amount_str = amount_text.replace('₦', '').replace(',', '')
+            amount = float(amount_str)
+            currency = 'naira'
+        elif '$' in amount_text:
+            amount_str = amount_text.replace('$', '').replace(',', '')
+            amount = float(amount_str) * 1400  # Convert USD to NGN at approximate rate
+            currency = 'usd'
+        else:
+            return 0.0
+        
+        # Calculate commission based on plan type
+        if plan_type == 'academy':
+            commission_rate = COMMISSION_RATES['academy']
+        elif plan_type == 'vip' and vip_duration:
+            commission_rate = COMMISSION_RATES['vip'].get(vip_duration, 0.15)
+        else:
+            commission_rate = 0.15  # Default 15%
+        
+        commission = amount * commission_rate
+        return round(commission, 2)
+        
+    except Exception as e:
+        logger.error(f"Error calculating commission: {e}")
+        return 0.0
+
+def add_commission_to_affiliate(referred_by_id: int, user_id: int, program: str, plan_type: str, 
+                               vip_duration: Optional[str], amount_text: str):
+    """Add commission to affiliate when referral makes payment"""
+    try:
+        # Calculate commission
+        commission_amount = calculate_commission(plan_type, vip_duration, amount_text)
+        
+        if commission_amount > 0:
+            # Add commission to affiliate's earnings
+            user_db.add_commission(referred_by_id, user_id, commission_amount, program, plan_type, vip_duration)
+            
+            # Get affiliate details
+            affiliate = user_db.fetch_user(referred_by_id)
+            if affiliate:
+                # Notify affiliate
+                try:
+                    plan_name = plan_display_name(plan_type, vip_duration)
+                    bot.send_message(
+                        referred_by_id,
+                        f"💰 <b>Commission Earned!</b>\n\n"
+                        f"✅ New referral subscribed!\n"
+                        f"👤 Referral ID: {user_id}\n"
+                        f"📋 Plan: {program.capitalize()} {plan_name}\n"
+                        f"💸 Commission: <b>₦{commission_amount:,.2f}</b>\n\n"
+                        f"Your total earnings: <b>₦{affiliate.get('affiliate_earnings', 0) + commission_amount:,.2f}</b>\n\n"
+                        f"Keep sharing your referral link to earn more! 🚀",
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Could not notify affiliate {referred_by_id}: {e}")
+                
+                # Notify admins about commission
+                for admin_id in ADMIN_IDS:
+                    try:
+                        bot.send_message(
+                            admin_id,
+                            f"💰 <b>Commission Generated</b>\n\n"
+                            f"Affiliate: {affiliate.get('name', 'Unknown')} (ID: {referred_by_id})\n"
+                            f"Referral: {user_id}\n"
+                            f"Plan: {program} {plan_type} {vip_duration or ''}\n"
+                            f"Commission: ₦{commission_amount:,.2f}",
+                            parse_mode='HTML'
+                        )
+                    except Exception as e:
+                        logger.error(f"Could not notify admin {admin_id}: {e}")
+            
+            return True
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error adding commission: {e}")
+        return False
+
+# ====================
+# REMINDER SYSTEM FUNCTIONS
+# ====================
+
 def get_program_benefits(program: str, plan_type: str) -> dict:
     """Get benefits for specific program and plan type"""
     benefits = {
@@ -716,7 +703,7 @@ def check_expiring_subscriptions():
         logger.error(traceback.format_exc())
 
 # ====================
-# AFFILIATE PAYOUT SYSTEM - NEW
+# AFFILIATE PAYOUT SYSTEM
 # ====================
 
 def handle_payout_request(uid: int, message_id: int = None):
@@ -1117,7 +1104,7 @@ def handle_view_commission_structure(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading commission structure.")
 
 # ====================
-# NEW EXPORT FUNCTIONS
+# EXPORT FUNCTIONS
 # ====================
 
 def export_affiliates_to_csv(admin_id: int):
@@ -1204,7 +1191,7 @@ def export_payouts_to_csv(admin_id: int):
         bot.send_message(admin_id, f"❌ Error exporting data: {e}")
 
 # ====================
-# NEW REPORT FUNCTIONS
+# REPORT FUNCTIONS
 # ====================
 
 def show_monthly_report(admin_id: int, message_id: int = None):
@@ -1497,7 +1484,7 @@ def show_payouts_weekly(admin_id: int, message_id: int = None):
         logger.error(f"Error showing weekly payouts: {e}")
 
 # ====================
-# FIXED ADMIN DASHBOARD
+# ADMIN DASHBOARD - FIXED
 # ====================
 
 def show_admin_dashboard(admin_id: int, message_id: int = None):
@@ -1553,16 +1540,11 @@ def show_admin_dashboard(admin_id: int, message_id: int = None):
         bot.send_message(admin_id, f"❌ Error loading dashboard: {e}")
 
 # ====================
-# FIXED ADMIN AFFILIATE MANAGEMENT HANDLERS
+# ADMIN AFFILIATE MANAGEMENT - FIXED
 # ====================
 
-@bot.message_handler(func=lambda m: m.text == "🤝 Affiliate Management")
-def handle_admin_affiliate_management(message: types.Message):
-    """Show affiliate management dashboard for admins - FIXED"""
-    if message.from_user.id not in ADMIN_IDS:
-        bot.send_message(message.chat.id, "❌ Unauthorized access.")
-        return
-    
+def show_affiliate_management(admin_id: int, message_id: int = None):
+    """Show affiliate management dashboard - FIXED VERSION"""
     text = (
         "🤝 <b>Affiliate Management Dashboard</b>\n\n"
         "Manage affiliates, commissions, and payouts.\n\n"
@@ -1583,12 +1565,25 @@ def handle_admin_affiliate_management(message: types.Message):
         types.InlineKeyboardButton("📱 Back to Admin", callback_data="admin_back")
     )
     
-    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=kb)
+    if message_id:
+        bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
+    else:
+        bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
+
+@bot.message_handler(func=lambda m: m.text == "🤝 Affiliate Management")
+def handle_admin_affiliate_management(message: types.Message):
+    """Handle admin affiliate management button - FIXED"""
+    if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
+        return
+    
+    show_affiliate_management(message.chat.id)
 
 @bot.message_handler(func=lambda m: m.text == "💰 Payout Requests")
 def handle_admin_payout_requests(message: types.Message):
     """Show payout requests for admins"""
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     show_all_payout_requests(message.chat.id)
@@ -1638,7 +1633,7 @@ def show_all_payout_requests(admin_id: int, message_id: int = None):
         logger.error(f"Error showing payout requests: {e}")
 
 # ====================
-# FIXED ADMIN CALLBACK HANDLER
+# ADMIN CALLBACK HANDLER - FIXED
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_"))
@@ -1651,7 +1646,10 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         
         action = call.data
         
-        if action == "admin_view_affiliates":
+        if action == "admin_affiliate_mgmt":
+            show_affiliate_management(call.from_user.id, call.message.message_id)
+        
+        elif action == "admin_view_affiliates":
             show_all_affiliates(call.from_user.id, call.message.message_id)
         
         elif action == "admin_view_payouts":
@@ -1665,9 +1663,6 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         
         elif action == "admin_pending_applications":
             show_pending_applications(call.from_user.id, call.message.message_id)
-        
-        elif action == "admin_affiliate_mgmt":
-            handle_admin_affiliate_management(call.message)
         
         elif action == "admin_back":
             # Return to admin dashboard
@@ -1715,16 +1710,16 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
             show_payouts_weekly(call.from_user.id, call.message.message_id)
         
         elif action == "admin_export_commissions_monthly":
-            bot.answer_callback_query(call.id, "✅ This feature is coming soon!")
+            bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
         elif action == "admin_export_detailed_stats":
-            bot.answer_callback_query(call.id, "✅ This feature is coming soon!")
+            bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
         elif action == "admin_export_payouts_monthly":
-            bot.answer_callback_query(call.id, "✅ This feature is coming soon!")
+            bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
         elif action == "admin_monthly_trends":
-            bot.answer_callback_query(call.id, "✅ This feature is coming soon!")
+            bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
         else:
             bot.answer_callback_query(call.id, "❌ Unknown action.")
@@ -2189,16 +2184,18 @@ def show_processed_payouts(admin_id: int, message_id: int = None):
         logger.error(f"Error showing processed payouts: {e}")
 
 # ====================
-# FIXED ADMIN START HANDLER
+# START HANDLER - FIXED
 # ====================
 
 @bot.message_handler(commands=['start'])
 def handle_start(message: types.Message):
-    """Updated /start handler with admin dashboard fix"""
+    """Fixed /start handler with proper response flow"""
     try:
         user = message.from_user
         uid = user.id
         command_args = message.text.split()
+        
+        logger.info(f"Processing /start for user {uid}")
         
         # Check for referral code
         referred_by = None
@@ -2230,11 +2227,14 @@ def handle_start(message: types.Message):
             types.InlineKeyboardButton("🚀 Crypto Program", callback_data="program:crypto"),
             types.InlineKeyboardButton("📈 Forex Program", callback_data="program:forex")
         )
+        
+        logger.info(f"Sending program selection to user {uid}")
         bot.send_message(uid, "👋 Welcome to BlockchainPlus Hub!\n\nPlease select your program:", reply_markup=kb)
         
         # Create user in database if not exists
         if not user_db.fetch_user(uid):
             user_db.insert_user(uid, f"{user.first_name or ''}", user.username or "", 'crypto')
+            logger.info(f"User {uid} created in database")
             
         # Store referral if exists
         if referred_by:
@@ -2242,12 +2242,18 @@ def handle_start(message: types.Message):
             
     except Exception as e:
         logger.error(f"Error in /start: {e}")
+        logger.error(traceback.format_exc())
+        try:
+            bot.send_message(uid, "Sorry, there was an error. Please try again.")
+        except:
+            pass
 
-# ----------------------------
-# Compact Menu System with Affiliate Option
-# ----------------------------
+# ====================
+# COMPACT MENU SYSTEM
+# ====================
+
 def send_compact_menu(uid: int, program: str):
-    """Send compact menu with main menu button - Updated with affiliate"""
+    """Send compact menu with main menu button"""
     program_name = "Crypto" if program == "crypto" else "Forex"
     
     # Check if user is affiliate
@@ -2370,7 +2376,10 @@ def quick_help(message: types.Message):
     
     bot.send_message(uid, quick_help_text, parse_mode='HTML', reply_markup=kb)
 
-# FIXED: Main menu callback handler with proper error handling
+# ====================
+# MAIN MENU CALLBACK HANDLER - FIXED
+# ====================
+
 @bot.callback_query_handler(func=lambda c: c.data.startswith("mainmenu_"))
 def handle_main_menu(call: types.CallbackQuery):
     """Handle main menu callbacks - FIXED VERSION"""
@@ -2403,69 +2412,8 @@ def handle_main_menu(call: types.CallbackQuery):
             show_quick_actions(uid, call.message.message_id)
             
         elif action == "back":
-            # FIXED: Properly go back to main menu
-            try:
-                user = user_db.fetch_user(uid)
-                program = user.get('program', 'crypto') if user else 'crypto'
-                program_name = "Crypto" if program == "crypto" else "Forex"
-                
-                menu_text = (
-                    f"📱 <b>{program_name} Program Dashboard</b>\n\n"
-                    f"Select an option below:\n\n"
-                    f"🔹 <b>Account & Subscriptions</b>\n"
-                    f"• 👋 Welcome: Program overview\n"
-                    f"• ⏳ Check Status: Subscription details\n"
-                    f"• 💳 Make Payment: Subscribe/renew\n\n"
-                    f"🔹 <b>Learning Resources</b>\n"
-                    f"• 🎥 Tutorials: Video learning\n"
-                    f"• 🆘 Help: Support & assistance\n\n"
-                    f"🔹 <b>Settings & Support</b>\n"
-                    f"• 📌 Contact: Admin support\n"
-                    f"• 🔄 Switch: Change program\n"
-                    f"• ❓ Help: Quick assistance\n"
-                )
-                
-                # Add affiliate option if user is approved affiliate
-                if user and user.get('is_affiliate'):
-                    menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Earn commissions\n"
-                
-                kb = types.InlineKeyboardMarkup(row_width=2)
-                kb.row(
-                    types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
-                    types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
-                )
-                kb.row(
-                    types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
-                    types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
-                )
-                kb.row(
-                    types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
-                    types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
-                )
-                kb.row(
-                    types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
-                    types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
-                )
-                
-                # Add affiliate button if user is approved affiliate
-                if user and user.get('is_affiliate'):
-                    kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
-                
-                # Add affiliate registration button if not an affiliate
-                elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
-                    kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
-                
-                bot.edit_message_text(
-                    menu_text,
-                    uid,
-                    call.message.message_id,
-                    parse_mode='HTML',
-                    reply_markup=kb
-                )
-            except Exception as e:
-                logger.error(f"Error in mainmenu_back: {e}")
-                # Fallback to sending new message
-                show_main_menu(call.message)
+            # Go back to main menu
+            show_main_menu(call.message)
             
         bot.answer_callback_query(call.id)
         
@@ -2642,9 +2590,10 @@ def show_payment_menu(uid: int, message_id: int = None):
     else:
         bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
 
-# ----------------------------
-# UPDATED TUTORIALS SECTION - VIDEOS PLAY DIRECTLY IN TELEGRAM BOT
-# ----------------------------
+# ====================
+# TUTORIALS SECTION
+# ====================
+
 def show_tutorials_menu(uid: int, message_id: int = None):
     """Show tutorials menu"""
     text = (
@@ -2722,7 +2671,7 @@ def handle_tutorial_callback(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading content. Please try again.")
 
 def show_tutorials_by_category(uid: int, category: str, message_id: int, page: int = 0):
-    """Show tutorials by category with pagination - IMPROVED WITH FULL TITLES"""
+    """Show tutorials by category with pagination"""
     try:
         # Filter tutorials by category
         category_tutorials = [t for t in TUTORIALS if t['category'] == category]
@@ -2755,10 +2704,10 @@ def show_tutorials_by_category(uid: int, category: str, message_id: int, page: i
         message_text += f"📄 Page {page + 1} of {total_pages}\n"
         message_text += f"📹 Total videos: {len(category_tutorials)}"
         
-        # Create keyboard - IMPROVED: Show full titles in buttons
+        # Create keyboard
         kb = types.InlineKeyboardMarkup(row_width=1)
         
-        # Add tutorial buttons with full titles (truncate if too long)
+        # Add tutorial buttons with full titles
         for i, tutorial in enumerate(current_tutorials, start=start_idx + 1):
             # Truncate title if too long for button
             title = tutorial['title']
@@ -2824,7 +2773,7 @@ def show_tutorial_detail(uid: int, tutorial_id: int, message_id: int):
             )
             return
         
-        # First, send the video directly within Telegram (if we have the file_id)
+        # First, send the video directly within Telegram
         video_caption = (
             f"🎬 <b>{tutorial['title']}</b>\n\n"
             f"📝 <b>Description:</b>\n"
@@ -2836,14 +2785,14 @@ def show_tutorial_detail(uid: int, tutorial_id: int, message_id: int):
         if tutorial.get('telegram_video_id'):
             try:
                 # Send video directly within Telegram
-                sent_video = bot.send_video(
+                bot.send_video(
                     uid,
                     tutorial['telegram_video_id'],
                     caption=video_caption,
                     parse_mode='HTML'
                 )
                 
-                # Send buttons in a separate message below the video
+                # Send buttons in a separate message
                 buttons_text = "👇 <b>Additional Options:</b>"
                 
                 kb = types.InlineKeyboardMarkup(row_width=1)
@@ -2887,7 +2836,7 @@ def send_tutorial_fallback(uid: int, tutorial: dict, caption: str):
     try:
         # Try to send thumbnail first
         if tutorial.get('thumbnail'):
-            sent_msg = bot.send_photo(
+            bot.send_photo(
                 uid,
                 tutorial['thumbnail'],
                 caption=caption,
@@ -2895,7 +2844,7 @@ def send_tutorial_fallback(uid: int, tutorial: dict, caption: str):
             )
         else:
             # Send text message
-            sent_msg = bot.send_message(
+            bot.send_message(
                 uid,
                 caption,
                 parse_mode='HTML'
@@ -2986,9 +2935,10 @@ def show_tutorial_search(uid: int, message_id: int):
             message_id
         )
 
-# ----------------------------
-# UPDATED HELP SECTION WITH COMPLETE FAQ AND OFFICIAL LINKS
-# ----------------------------
+# ====================
+# HELP SECTION
+# ====================
+
 def show_help_menu(uid: int, message_id: int = None):
     """Show help menu"""
     text = (
@@ -3410,9 +3360,10 @@ def menu_switch_program(message: types.Message):
 def menu_contact(message: types.Message):
     show_contact_admin(message.chat.id)
 
-# ----------------------------
-# Make Payment flow (EXISTING - UNCHANGED)
-# ----------------------------
+# ====================
+# PAYMENT FLOW
+# ====================
+
 @bot.callback_query_handler(func=lambda c: c.data.startswith("choose_"))
 def on_choose_plan(call: types.CallbackQuery):
     try:
@@ -3715,9 +3666,10 @@ def notify_admin_new_payment(user_id: int, user_record: dict):
     except Exception as e:
         logger.error(f"Error in notify admin: {e}")
 
-# ----------------------------
-# Admin approval flows - FIXED WITH COMMISSION TRACKING
-# ----------------------------
+# ====================
+# ADMIN APPROVAL FLOWS
+# ====================
+
 def approve_academy(user_id: int, program: str, call: types.CallbackQuery):
     """Updated Academy approval with commission tracking"""
     try:
@@ -3989,10 +3941,9 @@ def on_admin_reject(call: types.CallbackQuery):
         logger.error(f"Error in admin reject: {e}")
 
 # ====================
-# AFFILIATE SYSTEM HANDLERS - UPDATED
+# AFFILIATE SYSTEM HANDLERS
 # ====================
 
-# Affiliate registration
 @bot.message_handler(func=lambda m: m.text == "🤝 Become Affiliate")
 def handle_affiliate_registration(message: types.Message):
     """Handle affiliate registration"""
@@ -4005,7 +3956,7 @@ def handle_affiliate_registration(message: types.Message):
             show_affiliate_dashboard(uid)
             return
         
-        # Send affiliate program details with commission structure button
+        # Send affiliate program details
         text = (
             "🤝 <b>BlockchainPlus Affiliate Program</b>\n\n"
             "<b>Earn Commissions by Referring New Members!</b>\n\n"
@@ -4069,7 +4020,7 @@ def handle_affiliate_application(call: types.CallbackQuery):
         # Update user with affiliate application
         user_db.set_affiliate_status(uid, 'pending', affiliate_code)
         
-        # Send confirmation to user with commission structure button
+        # Send confirmation to user
         bot.answer_callback_query(call.id, "✅ Application submitted for admin approval!")
         text = (
             "📋 <b>Affiliate Application Submitted!</b>\n\n"
@@ -4244,7 +4195,6 @@ def handle_admin_reject_affiliate(call: types.CallbackQuery):
         logger.error(f"Error rejecting affiliate: {e}")
         bot.answer_callback_query(call.id, "Error rejecting affiliate")
 
-# Affiliate Dashboard
 def show_affiliate_dashboard(uid: int, message_id: int = None):
     """Show affiliate dashboard with stats and earnings"""
     try:
@@ -4436,13 +4386,15 @@ def handle_affiliate_dashboard_button(message: types.Message):
     uid = message.from_user.id
     show_affiliate_dashboard(uid)
 
-# ----------------------------
-# Admin Test Reminders Command
-# ----------------------------
+# ====================
+# ADMIN TEST COMMANDS
+# ====================
+
 @bot.message_handler(func=lambda m: m.text == "⏰ Test Reminders")
 def test_reminders_command(message: types.Message):
     """Manually trigger reminder check for testing"""
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     bot.send_message(message.chat.id, "⏳ Running manual reminder check...")
@@ -4455,13 +4407,11 @@ def test_reminders_command(message: types.Message):
         logger.error(f"Error in manual reminder check: {e}")
         bot.send_message(message.chat.id, f"❌ Error: {e}")
 
-# ----------------------------
-# Test Links Command
-# ----------------------------
 @bot.message_handler(func=lambda m: m.text == "🔗 Test Links")
 def test_all_links(message: types.Message):
     """Test all invite links"""
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     test_results = ["🔗 <b>Testing All Invite Links:</b>\n"]
@@ -4518,12 +4468,14 @@ def test_all_links(message: types.Message):
     
     bot.send_message(message.chat.id, "\n".join(test_results), parse_mode='HTML')
 
-# ----------------------------
-# Admin commands
-# ----------------------------
+# ====================
+# ADMIN COMMANDS
+# ====================
+
 @bot.message_handler(func=lambda m: m.text == "➕ Add User")
 def admin_add_help(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     help_text = (
@@ -4538,6 +4490,7 @@ def admin_add_help(message: types.Message):
 @bot.message_handler(func=lambda m: m.text == "📅 Extend User")
 def admin_extend_help(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     help_text = (
@@ -4553,6 +4506,7 @@ def admin_extend_help(message: types.Message):
 @bot.message_handler(func=lambda m: m.text == "📋 List Users")
 def admin_list_button(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     users = user_db.get_all_users()
@@ -4583,6 +4537,7 @@ def admin_list_button(message: types.Message):
 @bot.message_handler(func=lambda m: m.text == "🔍 Check User")
 def admin_check_help(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
     help_text = (
@@ -4592,12 +4547,43 @@ def admin_check_help(message: types.Message):
     )
     bot.send_message(message.chat.id, help_text, parse_mode="HTML")
 
-# ----------------------------
 # ====================
-# RAILWAY WEBHOOK SETUP
+# PROGRAM SELECTION HANDLER
 # ====================
-from flask import Flask, request, Response
-import os
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("program:"))
+def handle_program_selection(call: types.CallbackQuery):
+    """Handle program selection from /start command"""
+    try:
+        uid = call.from_user.id
+        program = call.data.split(":")[1]  # 'crypto' or 'forex'
+        
+        logger.info(f"User {uid} selected program: {program}")
+        
+        # Update user's program in database
+        user = user_db.fetch_user(uid)
+        if user:
+            user['program'] = program
+            user_db.users[str(uid)] = user
+            user_db.save_database()
+            logger.info(f"Updated user {uid} program to {program}")
+        else:
+            # Create user if not exists
+            user_db.insert_user(uid, call.from_user.first_name or "", call.from_user.username or "", program)
+            logger.info(f"Created user {uid} with program {program}")
+        
+        # Send compact menu
+        send_compact_menu(uid, program)
+        
+        bot.answer_callback_query(call.id)
+        
+    except Exception as e:
+        logger.error(f"Error handling program selection: {e}")
+        bot.answer_callback_query(call.id, "Error selecting program. Please try again.")
+
+# ====================
+# FLASK WEBHOOK SETUP
+# ====================
 
 # Create Flask app for Railway
 app = Flask(__name__)
@@ -4611,14 +4597,46 @@ def health_check():
 def health():
     return {'status': 'healthy', 'bot': 'running'}, 200
 
+@app.route('/debug')
+def debug():
+    """Debug endpoint to check bot status"""
+    try:
+        bot_info = bot.get_me()
+        db_stats = user_db.get_database_stats()
+        
+        return {
+            'status': 'running',
+            'bot': bot_info.username,
+            'users': db_stats.get('total_users', 0),
+            'timestamp': datetime.now().isoformat()
+        }, 200
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}, 500
+
 # Webhook endpoint for Telegram
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
+        try:
+            json_string = request.get_data().decode('utf-8')
+            logger.info(f"Received webhook update: {json_string[:200]}...")
+            
+            update = types.Update.de_json(json_string)
+            
+            # Log the update type
+            if update.message:
+                logger.info(f"Processing message from {update.message.from_user.id}: {update.message.text}")
+            elif update.callback_query:
+                logger.info(f"Processing callback from {update.callback_query.from_user.id}: {update.callback_query.data}")
+            
+            # Process the update
+            bot.process_new_updates([update])
+            return '', 200
+        except Exception as e:
+            logger.error(f"Error in webhook handler: {e}")
+            logger.error(traceback.format_exc())
+            return '', 500
+    
     return 'Bad request', 400
 
 def set_webhook():
@@ -4649,61 +4667,9 @@ def set_webhook():
         logger.error(f"❌ Error setting webhook: {e}")
 
 # ====================
-# RAILWAY WEBHOOK SETUP
+# BOT STARTUP
 # ====================
 
-# Create Flask app for Railway
-app = Flask(__name__)
-
-# Health check endpoint for Railway
-@app.route('/')
-def health_check():
-    return '🤖 BlockchainPlus Hub Bot is running!', 200
-
-@app.route('/health')
-def health():
-    return {'status': 'healthy', 'bot': 'running'}, 200
-
-# Webhook endpoint for Telegram
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    return 'Bad request', 400
-
-def set_webhook():
-    """Set webhook for Railway deployment"""
-    try:
-        # Get Railway URL from environment
-        RAILWAY_URL = os.environ.get('RAILWAY_STATIC_URL', '')
-        
-        if RAILWAY_URL:
-            webhook_url = f"{RAILWAY_URL}/webhook"
-            logger.info(f"Setting webhook to: {webhook_url}")
-            
-            # Remove any existing webhook first
-            bot.remove_webhook()
-            time.sleep(1)
-            
-            # Set new webhook
-            bot.set_webhook(
-                url=webhook_url,
-                max_connections=50,
-                allowed_updates=["message", "callback_query"]
-            )
-            logger.info("✅ Webhook set successfully")
-        else:
-            logger.warning("⚠️ RAILWAY_STATIC_URL not set. Webhook not configured.")
-            
-    except Exception as e:
-        logger.error(f"❌ Error setting webhook: {e}")
-
-# ----------------------------
-# Bot Startup with Scheduler & Webhook
-# ----------------------------
 if __name__ == "__main__":
     logger.info("=" * 50)
     logger.info("Starting BlockchainPlus Hub Bot with Complete Affiliate System...")
@@ -4766,7 +4732,7 @@ if __name__ == "__main__":
         set_webhook()
         
         # Start Flask app for Railway
-        port = int(os.environ.get('PORT', 8443))
+        port = int(os.environ.get('PORT', 8080))
         logger.info(f"Starting Flask webhook server on port {port}")
         app.run(host='0.0.0.0', port=port, debug=False)
         
