@@ -1646,9 +1646,6 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         
         action = call.data
         
-        # Log the callback for debugging
-        logger.info(f"Admin callback received: {action}")
-        
         if action == "admin_affiliate_mgmt":
             show_affiliate_management(call.from_user.id, call.message.message_id)
         
@@ -1724,17 +1721,7 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         elif action == "admin_monthly_trends":
             bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
-        # FIXED: Handle affiliate approval/rejection callbacks
-        elif action.startswith("admin_approve_affiliate:"):
-            user_id = int(action.split(":")[1])
-            handle_admin_approve_affiliate_action(call, user_id)
-        
-        elif action.startswith("admin_reject_affiliate:"):
-            user_id = int(action.split(":")[1])
-            handle_admin_reject_affiliate_action(call, user_id)
-        
         else:
-            logger.warning(f"Unknown admin callback action: {action}")
             bot.answer_callback_query(call.id, "❌ Unknown action.")
         
         # Only answer the callback query if not already answered
@@ -1744,112 +1731,6 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
     except Exception as e:
         logger.error(f"Error in admin affiliate callback: {e}")
         bot.answer_callback_query(call.id, f"❌ Error: {str(e)}")
-
-def handle_admin_approve_affiliate_action(call: types.CallbackQuery, user_id: int):
-    """Handle admin approval of affiliate - Fixed version"""
-    try:
-        # Approve affiliate
-        user = user_db.fetch_user(user_id)
-        if not user:
-            bot.answer_callback_query(call.id, "❌ User not found.")
-            return
-        
-        affiliate_code = user.get('affiliate_code') or generate_affiliate_code(user_id)
-        user_db.approve_affiliate(user_id, affiliate_code)
-        
-        # Get referral link
-        bot_username = bot.get_me().username
-        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
-        
-        # Notify user
-        try:
-            bot.send_message(
-                user_id,
-                f"🎉 <b>Congratulations! Your Affiliate Application is Approved!</b>\n\n"
-                f"✅ <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
-                f"🔗 <b>Your Unique Referral Link:</b>\n"
-                f"<code>{referral_link}</code>\n\n"
-                f"📊 <b>How to start earning:</b>\n"
-                f"1. Share your referral link\n"
-                f"2. When someone clicks and subscribes\n"
-                f"3. You earn commission automatically!\n\n"
-                f"💰 <b>Commission Structure:</b>\n"
-                f"• Academy: 30%\n"
-                f"• VIP Monthly: 15%\n"
-                f"• VIP 3-6 Months: 20%\n"
-                f"• VIP Yearly: 20%\n\n"
-                f"📈 <b>Track your earnings in the Affiliate Dashboard</b>\n"
-                f"📊 <b>Minimum Payout:</b> ₦10,000\n\n"
-                f"Start sharing and earning today! 🚀",
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logger.error(f"Could not notify user {user_id}: {e}")
-        
-        # Update admin
-        bot.answer_callback_query(call.id, "✅ Affiliate approved!")
-        bot.send_message(
-            call.from_user.id,
-            f"✅ Affiliate approved for user {user_id}\n"
-            f"🔑 Code: {affiliate_code}\n"
-            f"🔗 Link: {referral_link}"
-        )
-        
-        # Update the original admin message
-        try:
-            bot.edit_message_text(
-                f"✅ Affiliate application approved for user {user_id}\n"
-                f"🔑 Code: {affiliate_code}",
-                call.message.chat.id,
-                call.message.message_id
-            )
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Error approving affiliate: {e}")
-        bot.answer_callback_query(call.id, "Error approving affiliate")
-
-def handle_admin_reject_affiliate_action(call: types.CallbackQuery, user_id: int):
-    """Handle admin rejection of affiliate - Fixed version"""
-    try:
-        # Reject affiliate
-        user_db.set_affiliate_status(user_id, 'rejected')
-        
-        # Notify user
-        try:
-            bot.send_message(
-                user_id,
-                "❌ <b>Affiliate Application Status</b>\n\n"
-                "Your affiliate application has been reviewed and was not approved at this time.\n\n"
-                "Possible reasons:\n"
-                "• Incomplete application information\n"
-                "• Account history requirements not met\n"
-                "• Other administrative reasons\n\n"
-                "You may reapply after 30 days.\n"
-                "Contact @blockchainpluspro for more information.",
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logger.error(f"Could not notify user {user_id}: {e}")
-        
-        # Update admin
-        bot.answer_callback_query(call.id, "❌ Affiliate rejected.")
-        bot.send_message(call.from_user.id, f"❌ Affiliate application rejected for user {user_id}")
-        
-        # Update the original admin message
-        try:
-            bot.edit_message_text(
-                f"❌ Affiliate application rejected for user {user_id}",
-                call.message.chat.id,
-                call.message.message_id
-            )
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Error rejecting affiliate: {e}")
-        bot.answer_callback_query(call.id, "Error rejecting affiliate")
 
 def mark_payout_paid(admin_id: int, payout_id: str, message_id: int = None):
     """Mark payout as paid"""
@@ -2368,7 +2249,7 @@ def handle_start(message: types.Message):
             pass
 
 # ====================
-# COMPACT MENU SYSTEM - FIXED AFFILIATE BUTTON
+# COMPACT MENU SYSTEM
 # ====================
 
 def send_compact_menu(uid: int, program: str):
@@ -2383,12 +2264,10 @@ def send_compact_menu(uid: int, program: str):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     kb.row("📱 Main Menu", "📌 Contact Admin")
     
-    # FIX: Always show affiliate option if not an affiliate
-    # This allows users to apply even if their application is pending or rejected
-    if not is_affiliate:
-        kb.row("🤝 Become Affiliate", "❓ Help")
-    else:
+    if is_affiliate:
         kb.row("🤝 Affiliate Dashboard", "❓ Help")
+    else:
+        kb.row("🔄 Switch Program", "❓ Help")
     
     welcome_text = (
         f"👋 Welcome to BlockchainPlus {program_name} Program!\n\n"
@@ -2399,7 +2278,7 @@ def send_compact_menu(uid: int, program: str):
     if is_affiliate:
         welcome_text += f"🔹 <b>Affiliate Dashboard:</b> Track earnings & referrals\n"
     else:
-        welcome_text += f"🔹 <b>Become Affiliate:</b> Earn commissions by referring users\n"
+        welcome_text += f"🔹 <b>Switch Program:</b> Change program\n"
     
     welcome_text += f"🔹 <b>Help:</b> Quick assistance\n\n"
     welcome_text += f"Tap <b>📱 Main Menu</b> to get started!"
@@ -2458,12 +2337,13 @@ def show_main_menu(message: types.Message):
             types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
         )
         
-        # FIX: Show affiliate button to all users who are not approved affiliates
-        # This includes users with pending or rejected applications
-        if user and not user.get('is_affiliate'):
-            kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
-        elif user and user.get('is_affiliate'):
+        # Add affiliate button if user is approved affiliate
+        if user and user.get('is_affiliate'):
             kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
+        
+        # Add affiliate registration button if not an affiliate
+        elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
         
         bot.send_message(uid, menu_text, parse_mode='HTML', reply_markup=kb)
         
@@ -3286,7 +3166,7 @@ def handle_help_callback(call: types.CallbackQuery):
                 "buttons": [
                     {"text": "🎥 Security Tutorial", "callback_data": "tut_cat:security"},
                     {"text": "📞 Report Issue", "url": "https://t.me/blockchainpluspro"},
-                    {"text": "📱 Back to Menu", callback_data="mainmenu_back"}
+                    {"text": "📱 Back to Menu", "callback_data": "mainmenu_back"}
                 ]
             },
             "help_email": {
@@ -4061,44 +3941,19 @@ def on_admin_reject(call: types.CallbackQuery):
         logger.error(f"Error in admin reject: {e}")
 
 # ====================
-# AFFILIATE SYSTEM HANDLERS - FIXED
+# AFFILIATE SYSTEM HANDLERS
 # ====================
 
 @bot.message_handler(func=lambda m: m.text == "🤝 Become Affiliate")
 def handle_affiliate_registration(message: types.Message):
-    """Handle affiliate registration - FIXED VERSION"""
+    """Handle affiliate registration"""
     try:
         uid = message.from_user.id
-        user = user_db.fetch_user(uid)
         
-        # Check if already an approved affiliate
+        # Check if already an affiliate
+        user = user_db.fetch_user(uid)
         if user and user.get('is_affiliate'):
             show_affiliate_dashboard(uid)
-            return
-        
-        # Check if application is pending
-        if user and user.get('affiliate_status') == 'pending':
-            bot.send_message(
-                uid,
-                "⏳ <b>Affiliate Application Pending</b>\n\n"
-                "Your affiliate application is currently under review by our admin team.\n\n"
-                "You will receive a notification once your application is approved.\n\n"
-                "In the meantime, you can review our commission structure:",
-                parse_mode='HTML'
-            )
-            show_commission_structure(uid)
-            return
-        
-        # Check if previously rejected
-        if user and user.get('affiliate_status') == 'rejected':
-            bot.send_message(
-                uid,
-                "❌ <b>Previous Application Not Approved</b>\n\n"
-                "Your previous affiliate application was not approved.\n\n"
-                "You may reapply after 30 days from your original application date.\n\n"
-                "Contact @blockchainpluspro for more information.",
-                parse_mode='HTML'
-            )
             return
         
         # Send affiliate program details
@@ -4143,7 +3998,7 @@ def handle_affiliate_registration(message: types.Message):
 
 @bot.callback_query_handler(func=lambda c: c.data == "affiliate_apply")
 def handle_affiliate_application(call: types.CallbackQuery):
-    """Handle affiliate application submission - FIXED VERSION"""
+    """Handle affiliate application submission"""
     try:
         uid = call.from_user.id
         
@@ -4152,24 +4007,11 @@ def handle_affiliate_application(call: types.CallbackQuery):
         if user:
             if user.get('is_affiliate'):
                 bot.answer_callback_query(call.id, "✅ You're already an approved affiliate!")
-                show_affiliate_dashboard(uid, call.message.message_id)
+                show_affiliate_dashboard(uid)
                 return
             
             if user.get('affiliate_status') == 'pending':
                 bot.answer_callback_query(call.id, "⏳ Your application is pending approval")
-                show_commission_structure(uid, call.message.message_id)
-                return
-            
-            if user.get('affiliate_status') == 'rejected':
-                bot.answer_callback_query(call.id, "❌ Your previous application was not approved")
-                bot.send_message(
-                    uid,
-                    "❌ <b>Previous Application Not Approved</b>\n\n"
-                    "Your previous affiliate application was not approved.\n\n"
-                    "You may reapply after 30 days from your original application date.\n\n"
-                    "Contact @blockchainpluspro for more information.",
-                    parse_mode='HTML'
-                )
                 return
         
         # Generate unique affiliate code
@@ -4197,7 +4039,7 @@ def handle_affiliate_application(call: types.CallbackQuery):
             types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
         )
         
-        bot.edit_message_text(text, uid, call.message.message_id, parse_mode='HTML', reply_markup=kb)
+        bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
         
         # Notify all admins
         notify_admin_affiliate_application(uid, call.from_user.first_name, affiliate_code)
@@ -4233,19 +4075,132 @@ def notify_admin_affiliate_application(user_id: int, user_name: str, affiliate_c
     except Exception as e:
         logger.error(f"Error notifying admin: {e}")
 
+@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_approve_affiliate:"))
+def handle_admin_approve_affiliate(call: types.CallbackQuery):
+    """Handle admin approval of affiliate"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        user_id = int(call.data.split(":")[1])
+        
+        # Approve affiliate
+        user = user_db.fetch_user(user_id)
+        if not user:
+            bot.answer_callback_query(call.id, "❌ User not found.")
+            return
+        
+        affiliate_code = user.get('affiliate_code') or generate_affiliate_code(user_id)
+        user_db.approve_affiliate(user_id, affiliate_code)
+        
+        # Get referral link
+        bot_username = bot.get_me().username
+        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
+        
+        # Notify user
+        try:
+            bot.send_message(
+                user_id,
+                f"🎉 <b>Congratulations! Your Affiliate Application is Approved!</b>\n\n"
+                f"✅ <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
+                f"🔗 <b>Your Unique Referral Link:</b>\n"
+                f"<code>{referral_link}</code>\n\n"
+                f"📊 <b>How to start earning:</b>\n"
+                f"1. Share your referral link\n"
+                f"2. When someone clicks and subscribes\n"
+                f"3. You earn commission automatically!\n\n"
+                f"💰 <b>Commission Structure:</b>\n"
+                f"• Academy: 30%\n"
+                f"• VIP Monthly: 15%\n"
+                f"• VIP 3-6 Months: 20%\n"
+                f"• VIP Yearly: 20%\n\n"
+                f"📈 <b>Track your earnings in the Affiliate Dashboard</b>\n"
+                f"📊 <b>Minimum Payout:</b> ₦10,000\n\n"
+                f"Start sharing and earning today! 🚀",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Could not notify user {user_id}: {e}")
+        
+        # Update admin
+        bot.answer_callback_query(call.id, "✅ Affiliate approved!")
+        bot.send_message(
+            call.from_user.id,
+            f"✅ Affiliate approved for user {user_id}\n"
+            f"🔑 Code: {affiliate_code}\n"
+            f"🔗 Link: {referral_link}"
+        )
+        
+        # Update the original admin message
+        try:
+            bot.edit_message_text(
+                f"✅ Affiliate application approved for user {user_id}\n"
+                f"🔑 Code: {affiliate_code}",
+                call.message.chat.id,
+                call.message.message_id
+            )
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error approving affiliate: {e}")
+        bot.answer_callback_query(call.id, "Error approving affiliate")
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_affiliate:"))
+def handle_admin_reject_affiliate(call: types.CallbackQuery):
+    """Handle admin rejection of affiliate"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        user_id = int(call.data.split(":")[1])
+        
+        # Reject affiliate
+        user_db.set_affiliate_status(user_id, 'rejected')
+        
+        # Notify user
+        try:
+            bot.send_message(
+                user_id,
+                "❌ <b>Affiliate Application Status</b>\n\n"
+                "Your affiliate application has been reviewed and was not approved at this time.\n\n"
+                "Possible reasons:\n"
+                "• Incomplete application information\n"
+                "• Account history requirements not met\n"
+                "• Other administrative reasons\n\n"
+                "You may reapply after 30 days.\n"
+                "Contact @blockchainpluspro for more information.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Could not notify user {user_id}: {e}")
+        
+        # Update admin
+        bot.answer_callback_query(call.id, "❌ Affiliate rejected.")
+        bot.send_message(call.from_user.id, f"❌ Affiliate application rejected for user {user_id}")
+        
+        # Update the original admin message
+        try:
+            bot.edit_message_text(
+                f"❌ Affiliate application rejected for user {user_id}",
+                call.message.chat.id,
+                call.message.message_id
+            )
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error rejecting affiliate: {e}")
+        bot.answer_callback_query(call.id, "Error rejecting affiliate")
+
 def show_affiliate_dashboard(uid: int, message_id: int = None):
     """Show affiliate dashboard with stats and earnings"""
     try:
         user = user_db.fetch_user(uid)
         if not user or not user.get('is_affiliate'):
-            if message_id:
-                bot.edit_message_text(
-                    "You need to be an approved affiliate to access the dashboard.",
-                    uid,
-                    message_id
-                )
-            else:
-                bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
+            bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
             return
         
         affiliate_code = user.get('affiliate_code', 'N/A')
