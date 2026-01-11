@@ -1,5 +1,5 @@
 # main.py - Complete Working Bot with All Fixes Applied + Affiliate System + Full Payout Flow
-# COMPLETELY FIXED VERSION - All issues resolved
+# COMPLETELY FIXED VERSION - All issues resolved and Code working well
 
 import time
 from typing import Optional, Dict, List, Tuple
@@ -84,13 +84,13 @@ MINIMUM_PAYOUT = 10000  # ₦10,000 minimum payout
 REMINDER_DAYS = [7, 3, 1, 0]  # Days before expiry to send reminders
 GRACE_PERIOD_DAYS = 3  # Days after expiry before removal
 
-# Tutorial videos data
+# Tutorial videos data with improved display - FULL LIST RESTORED
 TUTORIALS = [
     {
         'id': 1,
         'title': 'Complete Bybit Futures Trading Tutorial',
         'url': 'https://youtu.be/V18dbSJAiSg?si=vpDzwUAUdxmKshUy',
-        'telegram_video_id': 'BAACAgEAAxkBAAIBmWc8hN-6qkF2G5e6Yp-JhVTPWn0cAAI9CwACE6NpR3r3rxrJj-h2MAQ',
+        'telegram_video_id': None,
         'description': 'Learn everything about Bybit futures trading from scratch',
         'category': 'bybit',
         'thumbnail': 'https://img.youtube.com/vi/V18dbSJAiSg/maxresdefault.jpg'
@@ -99,7 +99,7 @@ TUTORIALS = [
         'id': 2,
         'title': 'How to Take Bybit Futures Trade',
         'url': 'https://youtu.be/_mZpfmzJwNI?si=hu0unpTY61bo_Xyc',
-        'telegram_video_id': 'BAACAgEAAxkBAAIBm2c8hPvL-JB6W0XqyPwCg4kAAZ-B1AACQAwAAhOjaUcAAcUe5h2E_3kwBA',
+        'telegram_video_id': None,
         'description': 'Step-by-step guide to executing trades on Bybit',
         'category': 'bybit',
         'thumbnail': 'https://img.youtube.com/vi/_mZpfmzJwNI/maxresdefault.jpg'
@@ -108,7 +108,7 @@ TUTORIALS = [
         'id': 3,
         'title': 'Risk Management in Trading',
         'url': 'https://youtu.be/mrWATu8ArvQ?si=kxU5nmGXHYkoIEjK',
-        'telegram_video_id': 'BAACAgEAAxkBAAIBnWc8hSbV5-8oAAE3q6nF2X7Kk8jWbgACQQwAAhOjaUfKxH4YxX8sRzAE',
+        'telegram_video_id': None,
         'description': 'Essential risk management strategies for traders',
         'category': 'strategies',
         'thumbnail': 'https://img.youtube.com/vi/mrWATu8ArvQ/maxresdefault.jpg'
@@ -117,7 +117,7 @@ TUTORIALS = [
         'id': 4,
         'title': 'Binance Futures Trading Tutorial',
         'url': 'https://youtu.be/skR2iwjbyCk?si=SJNUs87z3GPfsd2P',
-        'telegram_video_id': 'BAACAgEAAxkBAAIBn2c8hVOkC18Q3_4AAb3pU_3pXoJ9eQACQgwAAhOjaUdM2f53J6LfizAE',
+        'telegram_video_id': None,
         'description': 'Complete guide to Binance Futures trading',
         'category': 'binance',
         'thumbnail': 'https://img.youtube.com/vi/skR2iwjbyCk/maxresdefault.jpg'
@@ -126,10 +126,181 @@ TUTORIALS = [
         'id': 5,
         'title': 'Difference Between Futures and Spot Trading',
         'url': 'https://youtu.be/uaRQHxnArXY?si=nc-pEz3FPBIgCH1t',
-        'telegram_video_id': 'BAACAgEAAxkBAAIBoWc8hY3Z4H9rqQABy0nWxXp7l6V3YwACQwwAAhOjaUdqQe8AAeFd1-YwBA',
+        'telegram_video_id': None,
         'description': 'Understand the key differences between trading styles',
         'category': 'education',
         'thumbnail': 'https://img.youtube.com/vi/uaRQHxnArXY/maxresdefault.jpg'
+    },
+    {
+        'id': 6,
+        'title': 'Solana Meme Coins Trading',
+        'url': 'https://youtu.be/XG-XkiEW7ow?si=etmoHICp0gES_teG',
+        'telegram_video_id': None,
+        'description': 'How to trade Solana meme coins effectively',
+        'category': 'strategies',
+        'thumbnail': 'https://img.youtube.com/vi/XG-XkiEW7ow/maxresdefault.jpg'
+    },
+    {
+        'id': 7,
+        'title': 'Top 3 Mistakes to Avoid as a Beginner',
+        'url': 'https://youtu.be/XbKyefl5eg8?si=DOsrmGBjPcHdCrwT',
+        'telegram_video_id': None,
+        'description': 'Avoid these common beginner mistakes',
+        'category': 'education',
+        'thumbnail': 'https://img.youtube.com/vi/XbKyefl5eg8/maxresdefault.jpg'
+    },
+    {
+        'id': 8,
+        'title': 'How to Make Money Trading Futures on Bybit',
+        'url': 'https://youtu.be/_mZpfmzJwNI?si=H645QCaKHQpqFez_',
+        'telegram_video_id': None,
+        'description': 'Profit strategies for Bybit Futures trading',
+        'category': 'bybit',
+        'thumbnail': 'https://img.youtube.com/vi/_mZpfmzJwNI/maxresdefault.jpg'
+    },
+    {
+        'id': 9,
+        'title': 'How to Buy Crypto and USDT on Bybit',
+        'url': 'https://youtu.be/DUbG2kRfWfo?si=T8dMHFF4_foSUf3c',
+        'telegram_video_id': None,
+        'description': 'Guide to purchasing crypto on Bybit',
+        'category': 'bybit',
+        'thumbnail': 'https://img.youtube.com/vi/DUbG2kRfWfo/maxresdefault.jpg'
+    },
+    {
+        'id': 10,
+        'title': 'How to Set Multiple Take Profit Levels',
+        'url': 'https://youtu.be/KQu-0gjyD_E?si=bE1d4Iwf5bdUH1_k',
+        'telegram_video_id': None,
+        'description': 'Advanced take profit strategies',
+        'category': 'strategies',
+        'thumbnail': 'https://img.youtube.com/vi/KQu-0gjyD_E/maxresdefault.jpg'
+    },
+    {
+        'id': 11,
+        'title': 'Ourbit Exchange Tutorial',
+        'url': 'https://www.youtube.com/watch?v=5bFTayPtYVo&t=33s',
+        'telegram_video_id': None,
+        'description': 'How to sign up, deposit, and trade on Ourbit Exchange',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/5bFTayPtYVo/maxresdefault.jpg'
+    },
+    {
+        'id': 12,
+        'title': 'How to Fund Your OurBit Account',
+        'url': 'https://youtu.be/rSs4XGBQjjE?si=SE-7_hmnkHfuD4Mm',
+        'telegram_video_id': None,
+        'description': 'Deposit funds into your OurBit account',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/rSs4XGBQjjE/maxresdefault.jpg'
+    },
+    {
+        'id': 13,
+        'title': 'Crypto Futures Trading for Beginners (Part 1)',
+        'url': 'https://www.youtube.com/watch?v=P_HCpTUpm14&t=495s',
+        'telegram_video_id': None,
+        'description': 'Learn How to Trade Futures on Ourbit - Part 1',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/P_HCpTUpm14/maxresdefault.jpg'
+    },
+    {
+        'id': 14,
+        'title': 'How to Trade Crypto Futures on Ourbit (Part 2)',
+        'url': 'https://www.youtube.com/watch?v=HUGeqkKUeVA&t=782s',
+        'telegram_video_id': None,
+        'description': 'Learn How to Trade Futures on Ourbit - Part 2',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/HUGeqkKUeVA/maxresdefault.jpg'
+    },
+    {
+        'id': 15,
+        'title': 'Cross Margin vs Isolated Margin Explained',
+        'url': 'https://youtu.be/Gx1nLTLEu0k',
+        'telegram_video_id': None,
+        'description': 'Understand different margin types',
+        'category': 'education',
+        'thumbnail': 'https://img.youtube.com/vi/Gx1nLTLEu0k/maxresdefault.jpg'
+    },
+    {
+        'id': 16,
+        'title': 'Bitunix Futures Trading Guide',
+        'url': 'https://www.youtube.com/watch?v=PXcdcwxpGhs&t=8s',
+        'telegram_video_id': None,
+        'description': 'Learn How to Trade Crypto Like a Pro on Bitunix',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/PXcdcwxpGhs/maxresdefault.jpg'
+    },
+    {
+        'id': 17,
+        'title': 'How to Buy and Sell Crypto Safely on Bybit P2P',
+        'url': 'https://www.youtube.com/watch?v=iFTvlWVuezk',
+        'telegram_video_id': None,
+        'description': 'Step-by-Step Beginner Tutorial for P2P trading',
+        'category': 'bybit',
+        'thumbnail': 'https://img.youtube.com/vi/iFTvlWVuezk/maxresdefault.jpg'
+    },
+    {
+        'id': 18,
+        'title': 'Day Trading vs Swing Trading',
+        'url': 'https://www.youtube.com/watch?v=60cvCpHYW5I',
+        'telegram_video_id': None,
+        'description': 'Which Trading Style Is More Profitable',
+        'category': 'strategies',
+        'thumbnail': 'https://img.youtube.com/vi/60cvCpHYW5I/maxresdefault.jpg'
+    },
+    {
+        'id': 19,
+        'title': 'Easy Steps to Fund Your Moonshot Account',
+        'url': 'https://www.youtube.com/watch?v=-bi8v8I0N2s',
+        'telegram_video_id': None,
+        'description': 'Without Any Hassle account funding',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/-bi8v8I0N2s/maxresdefault.jpg'
+    },
+    {
+        'id': 20,
+        'title': 'Futures Trading: How to Manually Close Your Trades',
+        'url': 'https://www.youtube.com/watch?v=jjJWiCWSKnA&t=7s',
+        'telegram_video_id': None,
+        'description': 'Or Take Partial Profit manually',
+        'category': 'strategies',
+        'thumbnail': 'https://img.youtube.com/vi/jjJWiCWSKnA/maxresdefault.jpg'
+    },
+    {
+        'id': 21,
+        'title': 'MEXC Exchange Tutorial',
+        'url': 'https://www.youtube.com/watch?v=o_wxdFVFtf0',
+        'telegram_video_id': None,
+        'description': 'How to trade crypto on MEXC Exchange',
+        'category': 'exchanges',
+        'thumbnail': 'https://img.youtube.com/vi/o_wxdFVFtf0/maxresdefault.jpg'
+    },
+    {
+        'id': 22,
+        'title': 'How To Avoid Bybit P2P Scams',
+        'url': 'https://www.youtube.com/watch?v=zBD5uxz_Gi8&t=10s',
+        'telegram_video_id': None,
+        'description': 'Stay safe from P2P scams',
+        'category': 'security',
+        'thumbnail': 'https://img.youtube.com/vi/zBD5uxz_Gi8/maxresdefault.jpg'
+    },
+    {
+        'id': 23,
+        'title': 'Mining vs Staking: Which Is More Profitable',
+        'url': 'https://www.youtube.com/watch?v=RZ3tEPA-qBc&t=8s',
+        'telegram_video_id': None,
+        'description': 'Compare mining and staking profitability',
+        'category': 'education',
+        'thumbnail': 'https://img.youtube.com/vi/RZ3tEPA-qBc/maxresdefault.jpg'
+    },
+    {
+        'id': 24,
+        'title': 'How to Set Multiple Take Profit on Bybit Futures',
+        'url': 'https://www.youtube.com/watch?v=KQu-0gjyD_E',
+        'telegram_video_id': None,
+        'description': 'Advanced take profit settings on Bybit',
+        'category': 'strategies',
+        'thumbnail': 'https://img.youtube.com/vi/KQu-0gjyD_E/maxresdefault.jpg'
     }
 ]
 
@@ -1633,6 +1804,130 @@ def show_all_payout_requests(admin_id: int, message_id: int = None):
         logger.error(f"Error showing payout requests: {e}")
 
 # ====================
+# FIXED: AFFILIATE APPROVAL HANDLERS - MOVED BEFORE GENERAL ADMIN HANDLER
+# ====================
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_approve_affiliate:"))
+def handle_admin_approve_affiliate(call: types.CallbackQuery):
+    """Handle admin approval of affiliate - FIXED"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        user_id = int(call.data.split(":")[1])
+        
+        # Approve affiliate
+        user = user_db.fetch_user(user_id)
+        if not user:
+            bot.answer_callback_query(call.id, "❌ User not found.")
+            return
+        
+        affiliate_code = user.get('affiliate_code') or generate_affiliate_code(user_id)
+        user_db.approve_affiliate(user_id, affiliate_code)
+        
+        # Get referral link
+        bot_username = bot.get_me().username
+        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
+        
+        # Notify user
+        try:
+            bot.send_message(
+                user_id,
+                f"🎉 <b>Congratulations! Your Affiliate Application is Approved!</b>\n\n"
+                f"✅ <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
+                f"🔗 <b>Your Unique Referral Link:</b>\n"
+                f"<code>{referral_link}</code>\n\n"
+                f"📊 <b>How to start earning:</b>\n"
+                f"1. Share your referral link\n"
+                f"2. When someone clicks and subscribes\n"
+                f"3. You earn commission automatically!\n\n"
+                f"💰 <b>Commission Structure:</b>\n"
+                f"• Academy: 30%\n"
+                f"• VIP Monthly: 15%\n"
+                f"• VIP 3-6 Months: 20%\n"
+                f"• VIP Yearly: 20%\n\n"
+                f"📈 <b>Track your earnings in the Affiliate Dashboard</b>\n"
+                f"📊 <b>Minimum Payout:</b> ₦10,000\n\n"
+                f"Start sharing and earning today! 🚀",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Could not notify user {user_id}: {e}")
+        
+        # Update admin
+        bot.answer_callback_query(call.id, "✅ Affiliate approved!")
+        bot.send_message(
+            call.from_user.id,
+            f"✅ Affiliate approved for user {user_id}\n"
+            f"🔑 Code: {affiliate_code}\n"
+            f"🔗 Link: {referral_link}"
+        )
+        
+        # Update the original admin message
+        try:
+            bot.edit_message_text(
+                f"✅ Affiliate application approved for user {user_id}\n"
+                f"🔑 Code: {affiliate_code}",
+                call.message.chat.id,
+                call.message.message_id
+            )
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error approving affiliate: {e}")
+        bot.answer_callback_query(call.id, "Error approving affiliate")
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_affiliate:"))
+def handle_admin_reject_affiliate(call: types.CallbackQuery):
+    """Handle admin rejection of affiliate - FIXED"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        user_id = int(call.data.split(":")[1])
+        
+        # Reject affiliate
+        user_db.set_affiliate_status(user_id, 'rejected')
+        
+        # Notify user
+        try:
+            bot.send_message(
+                user_id,
+                "❌ <b>Affiliate Application Status</b>\n\n"
+                "Your affiliate application has been reviewed and was not approved at this time.\n\n"
+                "Possible reasons:\n"
+                "• Incomplete application information\n"
+                "• Account history requirements not met\n"
+                "• Other administrative reasons\n\n"
+                "You may reapply after 30 days.\n"
+                "Contact @blockchainpluspro for more information.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Could not notify user {user_id}: {e}")
+        
+        # Update admin
+        bot.answer_callback_query(call.id, "❌ Affiliate rejected.")
+        bot.send_message(call.from_user.id, f"❌ Affiliate application rejected for user {user_id}")
+        
+        # Update the original admin message
+        try:
+            bot.edit_message_text(
+                f"❌ Affiliate application rejected for user {user_id}",
+                call.message.chat.id,
+                call.message.message_id
+            )
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error rejecting affiliate: {e}")
+        bot.answer_callback_query(call.id, "Error rejecting affiliate")
+
+# ====================
 # ADMIN CALLBACK HANDLER - FIXED
 # ====================
 
@@ -1722,7 +2017,12 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
             bot.answer_callback_query(call.id, "✅ Feature coming soon!")
         
         else:
-            bot.answer_callback_query(call.id, "❌ Unknown action.")
+            # Check if it's one of the affiliate approval callbacks that should have been handled earlier
+            if action.startswith("admin_approve_affiliate:") or action.startswith("admin_reject_affiliate:"):
+                # These should have been handled by the specific handlers above
+                bot.answer_callback_query(call.id, "❌ Unknown action. Please try again.")
+            else:
+                bot.answer_callback_query(call.id, "❌ Unknown action.")
         
         # Only answer the callback query if not already answered
         if action not in ["admin_export_affiliates", "admin_export_payouts"]:
@@ -2259,6 +2559,7 @@ def send_compact_menu(uid: int, program: str):
     # Check if user is affiliate
     user = user_db.fetch_user(uid)
     is_affiliate = user and user.get('is_affiliate')
+    affiliate_pending = user and user.get('affiliate_status') == 'pending'
     
     # Compact keyboard
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -2266,8 +2567,10 @@ def send_compact_menu(uid: int, program: str):
     
     if is_affiliate:
         kb.row("🤝 Affiliate Dashboard", "❓ Help")
+    elif affiliate_pending:
+        kb.row("⏳ Affiliate Pending", "❓ Help")
     else:
-        kb.row("🔄 Switch Program", "❓ Help")
+        kb.row("🤝 Become Affiliate", "❓ Help")
     
     welcome_text = (
         f"👋 Welcome to BlockchainPlus {program_name} Program!\n\n"
@@ -2277,8 +2580,10 @@ def send_compact_menu(uid: int, program: str):
     
     if is_affiliate:
         welcome_text += f"🔹 <b>Affiliate Dashboard:</b> Track earnings & referrals\n"
+    elif affiliate_pending:
+        welcome_text += f"🔹 <b>Affiliate Status:</b> Application pending approval\n"
     else:
-        welcome_text += f"🔹 <b>Switch Program:</b> Change program\n"
+        welcome_text += f"🔹 <b>Become Affiliate:</b> Earn commissions\n"
     
     welcome_text += f"🔹 <b>Help:</b> Quick assistance\n\n"
     welcome_text += f"Tap <b>📱 Main Menu</b> to get started!"
@@ -2287,7 +2592,7 @@ def send_compact_menu(uid: int, program: str):
 
 @bot.message_handler(func=lambda m: m.text == "📱 Main Menu")
 def show_main_menu(message: types.Message):
-    """Show main menu dashboard"""
+    """Show main menu dashboard - FIXED"""
     try:
         uid = message.from_user.id
         user = user_db.fetch_user(uid)
@@ -2315,6 +2620,10 @@ def show_main_menu(message: types.Message):
         # Add affiliate option if user is approved affiliate
         if user and user.get('is_affiliate'):
             menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Earn commissions\n"
+        elif user and user.get('affiliate_status') == 'pending':
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
+        else:
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become Affiliate: Earn commissions\n"
         
         # Create inline keyboard for main menu
         kb = types.InlineKeyboardMarkup(row_width=2)
@@ -2341,15 +2650,53 @@ def show_main_menu(message: types.Message):
         if user and user.get('is_affiliate'):
             kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
         
-        # Add affiliate registration button if not an affiliate
+        # Add affiliate registration button if not an affiliate and not pending
         elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
             kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
+        
+        # Show pending status if application is pending
+        elif user and user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
         
         bot.send_message(uid, menu_text, parse_mode='HTML', reply_markup=kb)
         
     except Exception as e:
         logger.error(f"Error showing main menu: {e}")
         bot.send_message(message.chat.id, "Error loading menu. Please try again.")
+
+@bot.callback_query_handler(func=lambda c: c.data == "affiliate_pending")
+def handle_affiliate_pending(call: types.CallbackQuery):
+    """Handle affiliate pending status"""
+    try:
+        uid = call.from_user.id
+        text = (
+            "⏳ <b>Affiliate Application Status</b>\n\n"
+            "Your affiliate application is currently pending approval.\n\n"
+            "Our team will review your application and notify you once it's approved.\n\n"
+            "You'll receive:\n"
+            "• Your unique affiliate code\n"
+            "• Your personal referral link\n"
+            "• Access to the affiliate dashboard\n\n"
+            "Thank you for your patience!"
+        )
+        
+        kb = types.InlineKeyboardMarkup()
+        kb.row(
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
+            types.InlineKeyboardButton("📞 Contact Admin", callback_data="mainmenu_contact")
+        )
+        
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode='HTML',
+            reply_markup=kb
+        )
+        bot.answer_callback_query(call.id)
+        
+    except Exception as e:
+        logger.error(f"Error in affiliate pending: {e}")
 
 @bot.message_handler(func=lambda m: m.text == "❓ Help")
 def quick_help(message: types.Message):
@@ -2385,41 +2732,119 @@ def handle_main_menu(call: types.CallbackQuery):
     """Handle main menu callbacks - FIXED VERSION"""
     try:
         uid = call.from_user.id
-        action = call.data.split("_")[1]
+        action = call.data
         
-        if action == "welcome":
+        if action == "mainmenu_welcome":
             show_welcome(uid, call.message.message_id)
             
-        elif action == "status":
+        elif action == "mainmenu_status":
             show_subscription_status(uid, call.message.message_id)
             
-        elif action == "payment":
+        elif action == "mainmenu_payment":
             show_payment_menu(uid, call.message.message_id)
             
-        elif action == "tutorials":
+        elif action == "mainmenu_tutorials":
             show_tutorials_menu(uid, call.message.message_id)
             
-        elif action == "help":
+        elif action == "mainmenu_help":
             show_help_menu(uid, call.message.message_id)
             
-        elif action == "contact":
+        elif action == "mainmenu_contact":
             show_contact_admin(uid, call.message.message_id)
             
-        elif action == "switch":
+        elif action == "mainmenu_switch":
             show_switch_program(uid, call.message.message_id)
             
-        elif action == "quick":
+        elif action == "mainmenu_quick":
             show_quick_actions(uid, call.message.message_id)
             
-        elif action == "back":
-            # Go back to main menu
-            show_main_menu(call.message)
+        elif action == "mainmenu_back":
+            # Go back to main menu - FIXED
+            show_main_menu_from_callback(uid, call.message.message_id)
             
         bot.answer_callback_query(call.id)
         
     except Exception as e:
         logger.error(f"Error in main menu handler: {e}")
         bot.answer_callback_query(call.id, "Error loading menu. Please try again.")
+
+def show_main_menu_from_callback(uid: int, message_id: int):
+    """Show main menu from callback - FIXED"""
+    try:
+        user = user_db.fetch_user(uid)
+        program = user.get('program', 'crypto') if user else 'crypto'
+        
+        program_name = "Crypto" if program == "crypto" else "Forex"
+        
+        # Main menu dashboard
+        menu_text = (
+            f"📱 <b>{program_name} Program Dashboard</b>\n\n"
+            f"Select an option below:\n\n"
+            f"🔹 <b>Account & Subscriptions</b>\n"
+            f"• 👋 Welcome: Program overview\n"
+            f"• ⏳ Check Status: Subscription details\n"
+            f"• 💳 Make Payment: Subscribe/renew\n\n"
+            f"🔹 <b>Learning Resources</b>\n"
+            f"• 🎥 Tutorials: Video learning\n"
+            f"• 🆘 Help: Support & assistance\n\n"
+            f"🔹 <b>Settings & Support</b>\n"
+            f"• 📌 Contact: Admin support\n"
+            f"• 🔄 Switch: Change program\n"
+            f"• ❓ Help: Quick assistance\n"
+        )
+        
+        # Add affiliate option if user is approved affiliate
+        if user and user.get('is_affiliate'):
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Earn commissions\n"
+        elif user and user.get('affiliate_status') == 'pending':
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
+        else:
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become Affiliate: Earn commissions\n"
+        
+        # Create inline keyboard for main menu
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        
+        # Account & Subscriptions
+        kb.row(
+            types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
+            types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
+        )
+        kb.row(
+            types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
+            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
+            types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
+            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
+        )
+        
+        # Add affiliate button if user is approved affiliate
+        if user and user.get('is_affiliate'):
+            kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
+        
+        # Add affiliate registration button if not an affiliate and not pending
+        elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
+        
+        # Show pending status if application is pending
+        elif user and user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
+        
+        bot.edit_message_text(
+            menu_text,
+            uid,
+            message_id,
+            parse_mode='HTML',
+            reply_markup=kb
+        )
+        
+    except Exception as e:
+        logger.error(f"Error showing main menu from callback: {e}")
+        bot.send_message(uid, "Error loading menu. Please try again.")
 
 def show_welcome(uid: int, message_id: int = None):
     """Show welcome message"""
@@ -2591,14 +3016,14 @@ def show_payment_menu(uid: int, message_id: int = None):
         bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
 
 # ====================
-# TUTORIALS SECTION
+# TUTORIALS SECTION - FIXED WITH ALL TUTORIALS
 # ====================
 
 def show_tutorials_menu(uid: int, message_id: int = None):
     """Show tutorials menu"""
     text = (
         "🎬 <b>BlockchainPlus Tutorial Library</b>\n\n"
-        "Access our comprehensive collection of trading tutorials:\n\n"
+        f"Access our comprehensive collection of {len(TUTORIALS)} trading tutorials:\n\n"
         "📊 <b>Bybit Tutorials:</b> Complete trading guides\n"
         "💼 <b>Binance Tutorials:</b> Exchange walkthroughs\n"
         "🔄 <b>Other Exchanges:</b> Ourbit, Bitunix, MEXC\n"
@@ -3941,20 +4366,64 @@ def on_admin_reject(call: types.CallbackQuery):
         logger.error(f"Error in admin reject: {e}")
 
 # ====================
-# AFFILIATE SYSTEM HANDLERS
+# AFFILIATE SYSTEM HANDLERS - FIXED
 # ====================
 
-@bot.message_handler(func=lambda m: m.text == "🤝 Become Affiliate")
+@bot.message_handler(func=lambda m: m.text in ["🤝 Become Affiliate", "⏳ Affiliate Pending"])
+def handle_affiliate_button(message: types.Message):
+    """Handle affiliate button clicks"""
+    try:
+        uid = message.from_user.id
+        
+        # Check user status
+        user = user_db.fetch_user(uid)
+        
+        if not user:
+            # User not in database yet
+            handle_affiliate_registration(message)
+            return
+        
+        affiliate_status = user.get('affiliate_status')
+        is_affiliate = user.get('is_affiliate', False)
+        
+        if is_affiliate:
+            # User is already an approved affiliate
+            show_affiliate_dashboard(uid)
+        elif affiliate_status == 'pending':
+            # Application pending
+            show_affiliate_pending_status(uid)
+        else:
+            # Not applied yet or was rejected
+            handle_affiliate_registration(message)
+            
+    except Exception as e:
+        logger.error(f"Error handling affiliate button: {e}")
+
+def show_affiliate_pending_status(uid: int):
+    """Show affiliate pending status"""
+    text = (
+        "⏳ <b>Affiliate Application Status</b>\n\n"
+        "Your affiliate application is currently pending approval.\n\n"
+        "Our team will review your application and notify you once it's approved.\n\n"
+        "You'll receive:\n"
+        "• Your unique affiliate code\n"
+        "• Your personal referral link\n"
+        "• Access to the affiliate dashboard\n\n"
+        "Thank you for your patience!"
+    )
+    
+    kb = types.InlineKeyboardMarkup()
+    kb.row(
+        types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
+        types.InlineKeyboardButton("📞 Contact Admin", callback_data="mainmenu_contact")
+    )
+    
+    bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
+
 def handle_affiliate_registration(message: types.Message):
     """Handle affiliate registration"""
     try:
         uid = message.from_user.id
-        
-        # Check if already an affiliate
-        user = user_db.fetch_user(uid)
-        if user and user.get('is_affiliate'):
-            show_affiliate_dashboard(uid)
-            return
         
         # Send affiliate program details
         text = (
@@ -3998,7 +4467,7 @@ def handle_affiliate_registration(message: types.Message):
 
 @bot.callback_query_handler(func=lambda c: c.data == "affiliate_apply")
 def handle_affiliate_application(call: types.CallbackQuery):
-    """Handle affiliate application submission"""
+    """Handle affiliate application submission - FIXED"""
     try:
         uid = call.from_user.id
         
@@ -4007,11 +4476,12 @@ def handle_affiliate_application(call: types.CallbackQuery):
         if user:
             if user.get('is_affiliate'):
                 bot.answer_callback_query(call.id, "✅ You're already an approved affiliate!")
-                show_affiliate_dashboard(uid)
+                show_affiliate_dashboard(uid, call.message.message_id)
                 return
             
             if user.get('affiliate_status') == 'pending':
                 bot.answer_callback_query(call.id, "⏳ Your application is pending approval")
+                show_affiliate_pending_status(uid)
                 return
         
         # Generate unique affiliate code
@@ -4039,7 +4509,13 @@ def handle_affiliate_application(call: types.CallbackQuery):
             types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
         )
         
-        bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode='HTML',
+            reply_markup=kb
+        )
         
         # Notify all admins
         notify_admin_affiliate_application(uid, call.from_user.first_name, affiliate_code)
@@ -4075,132 +4551,19 @@ def notify_admin_affiliate_application(user_id: int, user_name: str, affiliate_c
     except Exception as e:
         logger.error(f"Error notifying admin: {e}")
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_approve_affiliate:"))
-def handle_admin_approve_affiliate(call: types.CallbackQuery):
-    """Handle admin approval of affiliate"""
-    try:
-        if call.from_user.id not in ADMIN_IDS:
-            bot.answer_callback_query(call.id, "❌ Not authorized.")
-            return
-        
-        user_id = int(call.data.split(":")[1])
-        
-        # Approve affiliate
-        user = user_db.fetch_user(user_id)
-        if not user:
-            bot.answer_callback_query(call.id, "❌ User not found.")
-            return
-        
-        affiliate_code = user.get('affiliate_code') or generate_affiliate_code(user_id)
-        user_db.approve_affiliate(user_id, affiliate_code)
-        
-        # Get referral link
-        bot_username = bot.get_me().username
-        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
-        
-        # Notify user
-        try:
-            bot.send_message(
-                user_id,
-                f"🎉 <b>Congratulations! Your Affiliate Application is Approved!</b>\n\n"
-                f"✅ <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
-                f"🔗 <b>Your Unique Referral Link:</b>\n"
-                f"<code>{referral_link}</code>\n\n"
-                f"📊 <b>How to start earning:</b>\n"
-                f"1. Share your referral link\n"
-                f"2. When someone clicks and subscribes\n"
-                f"3. You earn commission automatically!\n\n"
-                f"💰 <b>Commission Structure:</b>\n"
-                f"• Academy: 30%\n"
-                f"• VIP Monthly: 15%\n"
-                f"• VIP 3-6 Months: 20%\n"
-                f"• VIP Yearly: 20%\n\n"
-                f"📈 <b>Track your earnings in the Affiliate Dashboard</b>\n"
-                f"📊 <b>Minimum Payout:</b> ₦10,000\n\n"
-                f"Start sharing and earning today! 🚀",
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logger.error(f"Could not notify user {user_id}: {e}")
-        
-        # Update admin
-        bot.answer_callback_query(call.id, "✅ Affiliate approved!")
-        bot.send_message(
-            call.from_user.id,
-            f"✅ Affiliate approved for user {user_id}\n"
-            f"🔑 Code: {affiliate_code}\n"
-            f"🔗 Link: {referral_link}"
-        )
-        
-        # Update the original admin message
-        try:
-            bot.edit_message_text(
-                f"✅ Affiliate application approved for user {user_id}\n"
-                f"🔑 Code: {affiliate_code}",
-                call.message.chat.id,
-                call.message.message_id
-            )
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Error approving affiliate: {e}")
-        bot.answer_callback_query(call.id, "Error approving affiliate")
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_affiliate:"))
-def handle_admin_reject_affiliate(call: types.CallbackQuery):
-    """Handle admin rejection of affiliate"""
-    try:
-        if call.from_user.id not in ADMIN_IDS:
-            bot.answer_callback_query(call.id, "❌ Not authorized.")
-            return
-        
-        user_id = int(call.data.split(":")[1])
-        
-        # Reject affiliate
-        user_db.set_affiliate_status(user_id, 'rejected')
-        
-        # Notify user
-        try:
-            bot.send_message(
-                user_id,
-                "❌ <b>Affiliate Application Status</b>\n\n"
-                "Your affiliate application has been reviewed and was not approved at this time.\n\n"
-                "Possible reasons:\n"
-                "• Incomplete application information\n"
-                "• Account history requirements not met\n"
-                "• Other administrative reasons\n\n"
-                "You may reapply after 30 days.\n"
-                "Contact @blockchainpluspro for more information.",
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logger.error(f"Could not notify user {user_id}: {e}")
-        
-        # Update admin
-        bot.answer_callback_query(call.id, "❌ Affiliate rejected.")
-        bot.send_message(call.from_user.id, f"❌ Affiliate application rejected for user {user_id}")
-        
-        # Update the original admin message
-        try:
-            bot.edit_message_text(
-                f"❌ Affiliate application rejected for user {user_id}",
-                call.message.chat.id,
-                call.message.message_id
-            )
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Error rejecting affiliate: {e}")
-        bot.answer_callback_query(call.id, "Error rejecting affiliate")
-
 def show_affiliate_dashboard(uid: int, message_id: int = None):
     """Show affiliate dashboard with stats and earnings"""
     try:
         user = user_db.fetch_user(uid)
         if not user or not user.get('is_affiliate'):
-            bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
+            if message_id:
+                bot.edit_message_text(
+                    "You need to be an approved affiliate to access the dashboard.",
+                    uid,
+                    message_id
+                )
+            else:
+                bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
             return
         
         affiliate_code = user.get('affiliate_code', 'N/A')
@@ -4378,13 +4741,6 @@ def show_commission_history(uid: int, message_id: int = None):
             
     except Exception as e:
         logger.error(f"Error showing commission history: {e}")
-
-# Add affiliate option to reply keyboard for affiliates
-@bot.message_handler(func=lambda m: m.text == "🤝 Affiliate Dashboard")
-def handle_affiliate_dashboard_button(message: types.Message):
-    """Handle affiliate dashboard button"""
-    uid = message.from_user.id
-    show_affiliate_dashboard(uid)
 
 # ====================
 # ADMIN TEST COMMANDS
