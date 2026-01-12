@@ -13,12 +13,19 @@ import csv
 import io
 import config
 from database import UserDatabase
-import os
 from threading import Thread
 from flask import Flask, request, Response
 import hashlib
 import random
 import string
+import os
+
+# Get database path from environment or use default
+DATABASE_PATH = os.environ.get('DATABASE_PATH', '.')
+DB_FILE = os.path.join(DATABASE_PATH, 'users.json')
+
+# Ensure the data directory exists
+os.makedirs(DATABASE_PATH, exist_ok=True)
 
 # ====================
 # INITIALIZATION
@@ -37,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 # Bot initialization
 bot = TeleBot(config.bot_token, threaded=True, num_threads=5)
-user_db = UserDatabase()
+user_db = UserDatabase(DB_FILE)
 scheduler = BackgroundScheduler()
 ADMIN_IDS = config.admin_ids
 
@@ -5339,6 +5346,28 @@ if __name__ == "__main__":
             name='Interval subscription expiry check',
             replace_existing=True
         )
+
+        # ====================
+        # DATABASE BACKUP SCHEDULER
+        # ====================
+
+        # Add backup job (runs every 24 hours)
+        scheduler.add_job(
+        lambda: user_db.periodic_backup(interval_hours=24),
+        trigger='interval',
+        hours=24,
+        id='daily_backup',
+        name='Daily database backup',
+        replace_existing=True
+        )
+
+    # Also add an immediate backup on startup
+    
+        backup_file = user_db.periodic_backup()
+        if backup_file:
+            logger.info(f"Initial backup created: {backup_file}")
+    except Exception as e:
+        logger.error(f"Could not create initial backup: {e}")
         
         scheduler.start()
         logger.info("Scheduler started successfully")

@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import shutil
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple, Any
@@ -9,17 +10,26 @@ from typing import Optional, Dict, List, Tuple, Any
 logger = logging.getLogger(__name__)
 
 class UserDatabase:
-    def __init__(self, db_file: str = 'users.json'):
+    def __init__(self, db_file: str = None):
+        # Use DATABASE_PATH environment variable or default to current directory
+        db_dir = os.environ.get('DATABASE_PATH', '.')
+        
+        if not db_file:
+            db_file = os.path.join(db_dir, 'users.json')
+        
         self.db_file = db_file
+        
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
         
         # Initialize empty database structure
         self.db = self._create_empty_db()
 
-        # Initialize users as empty dictionary
+        # Initialize collections
         self.users = {} 
-        self.affiliates = {}  # Initialize affiliates dict
-        self.payouts = []  # Initialize payouts list
-        self.commissions = {}  # Initialize commissions dict
+        self.affiliates = {}
+        self.payouts = [] 
+        self.commissions = {}
         
         # Load existing database
         self._load_database()
@@ -36,6 +46,8 @@ class UserDatabase:
         
         # Verify database integrity after loading
         self.verify_database_integrity()
+        
+        logger.info(f"Database initialized at: {self.db_file}")
 
     def _load_database(self):
         """Load database from file or create new - FIXED VERSION"""
@@ -1205,3 +1217,45 @@ class UserDatabase:
     def cleanup_database(self):
         """Clean up database - alias for compatibility"""
         return self.cleanup_old_data()
+
+    def periodic_backup(self, interval_hours: int = 24):
+        """Create periodic backups of the database"""
+        try:
+            # Create backup directory
+            backup_dir = os.path.join(os.path.dirname(self.db_file), 'backups')
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            # Generate backup filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = os.path.join(backup_dir, f'users_backup_{timestamp}.json')
+            
+            # Copy current database to backup
+            shutil.copy2(self.db_file, backup_file)
+            
+            logger.info(f"Created database backup: {backup_file}")
+            
+            # Clean up old backups (keep last 7 days)
+            self.cleanup_old_backups(backup_dir, days_to_keep=7)
+            
+            return backup_file
+        except Exception as e:
+            logger.error(f"Error creating backup: {e}")
+            return None
+
+    def cleanup_old_backups(self, backup_dir: str, days_to_keep: int = 7):
+        """Remove old backup files"""
+        try:
+            current_time = time.time()
+            cutoff_time = current_time - (days_to_keep * 24 * 3600)
+            
+            for filename in os.listdir(backup_dir):
+                if filename.startswith('users_backup_'):
+                    file_path = os.path.join(backup_dir, filename)
+                    # Get file modification time
+                    file_mtime = os.path.getmtime(file_path)
+                    
+                    if file_mtime < cutoff_time:
+                        os.remove(file_path)
+                        logger.info(f"Removed old backup: {filename}")
+        except Exception as e:
+            logger.error(f"Error cleaning up old backups: {e}")
