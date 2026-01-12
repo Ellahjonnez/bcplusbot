@@ -1686,7 +1686,7 @@ def show_admin_dashboard(admin_id: int, message_id: int = None):
         )
         
         kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        kb.row("➕ Add User", "📅 Extend User")
+        kb.row("📊 Start Permanent", "📅 Extend User")
         kb.row("📋 List Users", "🔍 Check User")
         kb.row("🔗 Test Links", "⏰ Test Reminders")
         kb.row("🤝 Affiliate Management", "💰 Payout Requests")
@@ -1709,6 +1709,20 @@ def show_admin_dashboard(admin_id: int, message_id: int = None):
     except Exception as e:
         logger.error(f"Error showing admin dashboard: {e}")
         bot.send_message(admin_id, f"❌ Error loading dashboard: {e}")
+
+# ====================
+# START PERMANENT BUTTON HANDLER
+# ====================
+
+@bot.message_handler(func=lambda m: m.text == "📊 Start Permanent")
+def handle_start_permanent(message: types.Message):
+    """Handle Start Permanent button for admins"""
+    if message.from_user.id not in ADMIN_IDS:
+        bot.send_message(message.chat.id, "❌ Unauthorized access.")
+        return
+    
+    # Show admin dashboard
+    show_admin_dashboard(message.chat.id)
 
 # ====================
 # ADMIN AFFILIATE MANAGEMENT - FIXED
@@ -4825,7 +4839,7 @@ def test_all_links(message: types.Message):
     bot.send_message(message.chat.id, "\n".join(test_results), parse_mode='HTML')
 
 # ====================
-# ADMIN COMMANDS
+# ADMIN COMMANDS - UPDATED
 # ====================
 
 @bot.message_handler(func=lambda m: m.text == "➕ Add User")
@@ -4865,43 +4879,255 @@ def admin_list_button(message: types.Message):
         bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
-    users = user_db.get_all_users()
-    if not users:
-        bot.send_message(message.chat.id, "ℹ️ No users found in the database yet.")
-        return
-    
-    lines = ["👥 <b>User List (First 20):</b>"]
-    count = 0
-    
-    for user_id, u in users.items():
-        if count >= 20:
-            lines.append(f"\n... and {len(users) - 20} more users")
-            break
-        
-        try:
-            name = u.get('name', '-')[:15]
-            username = f"@{u.get('username')}" if u.get('username') else '-'
-            
-            lines.append(f"ID: {u.get('tg_id')} | {name} | {username}")
-            count += 1
-        except Exception as e:
-            logger.error(f"Error processing user {user_id}: {e}")
-            continue
-    
-    bot.send_message(message.chat.id, "\n".join(lines), parse_mode='HTML')
+    show_subscribed_users_list(message.chat.id)
 
 @bot.message_handler(func=lambda m: m.text == "🔍 Check User")
-def admin_check_help(message: types.Message):
+def admin_check_user(message: types.Message):
+    """Updated Check User - Shows subscribed users list with details"""
     if message.from_user.id not in ADMIN_IDS:
         bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
     
-    help_text = (
-        "ℹ️ <b>Check User Details</b>\n\n"
-        "Command: <code>/check user_id</code>\n"
-        "Example: <code>/check 123456789</code>"
-    )
-    bot.send_message(message.chat.id, help_text, parse_mode="HTML")
+    show_subscribed_users_list(message.chat.id)
+
+def show_subscribed_users_list(admin_id: int, page: int = 0):
+    """Show list of subscribed users with program and expiry details"""
+    try:
+        # Get all users
+        all_users = user_db.get_all_users()
+        
+        if not all_users:
+            bot.send_message(admin_id, "ℹ️ No users found in the database yet.")
+            return
+        
+        # Filter users who have active subscriptions
+        subscribed_users = []
+        for user_id_str, user_data in all_users.items():
+            try:
+                user_id = int(user_id_str)
+                has_subscription = False
+                
+                # Check for any active subscription
+                for program in ['crypto', 'forex']:
+                    for plan in ['academy', 'vip']:
+                        expiry_key = f"{program}_{plan}_expiry_date"
+                        if expiry_key in user_data and user_data[expiry_key]:
+                            try:
+                                expiry_date = datetime.strptime(user_data[expiry_key], '%Y-%m-%d')
+                                if expiry_date.date() >= datetime.now().date():
+                                    has_subscription = True
+                                    break
+                            except:
+                                pass
+                    if has_subscription:
+                        break
+                
+                if has_subscription:
+                    subscribed_users.append((user_id, user_data))
+            
+            except Exception as e:
+                logger.error(f"Error processing user {user_id_str}: {e}")
+                continue
+        
+        if not subscribed_users:
+            bot.send_message(admin_id, "ℹ️ No users with active subscriptions found.")
+            return
+        
+        # Sort by user ID
+        subscribed_users.sort(key=lambda x: x[0])
+        
+        # Pagination
+        per_page = 10
+        start_idx = page * per_page
+        end_idx = start_idx + per_page
+        current_page_users = subscribed_users[start_idx:end_idx]
+        
+        # Create message
+        total_users = len(subscribed_users)
+        total_pages = (total_users + per_page - 1) // per_page
+        
+        message_text = (
+            f"📊 <b>Subscribed Users List</b>\n"
+            f"📅 <i>Page {page + 1} of {total_pages} • Total: {total_users} users</i>\n\n"
+        )
+        
+        # Add user details
+        for i, (user_id, user_data) in enumerate(current_page_users, start=start_idx + 1):
+            name = user_data.get('name', 'Unknown')[:20]
+            username = f"@{user_data.get('username')}" if user_data.get('username') else '-'
+            
+            # Get subscription details
+            subscriptions = []
+            for program in ['crypto', 'forex']:
+                program_name = "Crypto" if program == 'crypto' else "Forex"
+                
+                # Check academy
+                academy_exp = user_data.get(f'{program}_academy_expiry_date')
+                if academy_exp:
+                    try:
+                        expiry_date = datetime.strptime(academy_exp, '%Y-%m-%d')
+                        days_left = (expiry_date - datetime.now()).days
+                        if days_left >= 0:
+                            subscriptions.append(f"{program_name[:1]}A:{days_left}d")
+                    except:
+                        pass
+                
+                # Check VIP
+                vip_exp = user_data.get(f'{program}_vip_expiry_date')
+                if vip_exp:
+                    try:
+                        expiry_date = datetime.strptime(vip_exp, '%Y-%m-%d')
+                        days_left = (expiry_date - datetime.now()).days
+                        if days_left >= 0:
+                            subscriptions.append(f"{program_name[:1]}V:{days_left}d")
+                    except:
+                        pass
+            
+            # Format subscriptions
+            subs_text = ", ".join(subscriptions) if subscriptions else "No active subs"
+            
+            message_text += (
+                f"<b>{i}. ID: {user_id}</b>\n"
+                f"   👤 {name} | {username}\n"
+                f"   📋 Subs: {subs_text}\n\n"
+            )
+        
+        # Add pagination info
+        message_text += f"📊 <i>Showing {len(current_page_users)} of {total_users} subscribed users</i>"
+        
+        # Create inline keyboard for navigation
+        kb = types.InlineKeyboardMarkup()
+        
+        # Navigation buttons
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(types.InlineKeyboardButton("⬅️ Previous", callback_data=f"admin_subscribed_page:{page-1}"))
+        
+        nav_buttons.append(types.InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+        
+        if end_idx < total_users:
+            nav_buttons.append(types.InlineKeyboardButton("Next ➡️", callback_data=f"admin_subscribed_page:{page+1}"))
+        
+        if nav_buttons:
+            kb.row(*nav_buttons)
+        
+        # Add action buttons
+        kb.row(
+            types.InlineKeyboardButton("🔄 Refresh", callback_data=f"admin_subscribed_page:{page}"),
+            types.InlineKeyboardButton("📊 Export to CSV", callback_data="admin_export_subscribed")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🔍 View Details", callback_data="admin_view_user_detail"),
+            types.InlineKeyboardButton("📱 Admin Dashboard", callback_data="admin_back")
+        )
+        
+        bot.send_message(admin_id, message_text, parse_mode='HTML', reply_markup=kb)
+        
+    except Exception as e:
+        logger.error(f"Error showing subscribed users: {e}")
+        bot.send_message(admin_id, f"❌ Error loading user list: {e}")
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("admin_subscribed_page:"))
+def handle_admin_subscribed_page(call: types.CallbackQuery):
+    """Handle pagination for subscribed users list"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        page = int(call.data.split(":")[1])
+        show_subscribed_users_list(call.from_user.id, page)
+        bot.answer_callback_query(call.id)
+        
+    except Exception as e:
+        logger.error(f"Error handling subscribed page: {e}")
+        bot.answer_callback_query(call.id, "Error loading page.")
+
+@bot.callback_query_handler(func=lambda c: c.data == "admin_export_subscribed")
+def handle_export_subscribed(call: types.CallbackQuery):
+    """Export subscribed users to CSV"""
+    try:
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "❌ Not authorized.")
+            return
+        
+        # Get all users
+        all_users = user_db.get_all_users()
+        
+        # Filter subscribed users
+        subscribed_data = []
+        for user_id_str, user_data in all_users.items():
+            try:
+                user_id = int(user_id_str)
+                has_active_sub = False
+                
+                # Check for active subscriptions
+                for program in ['crypto', 'forex']:
+                    for plan in ['academy', 'vip']:
+                        expiry_key = f"{program}_{plan}_expiry_date"
+                        if expiry_key in user_data and user_data[expiry_key]:
+                            try:
+                                expiry_date = datetime.strptime(user_data[expiry_key], '%Y-%m-%d')
+                                if expiry_date.date() >= datetime.now().date():
+                                    has_active_sub = True
+                                    break
+                            except:
+                                pass
+                    if has_active_sub:
+                        break
+                
+                if has_active_sub:
+                    # Get subscription details
+                    crypto_academy = user_data.get('crypto_academy_expiry_date', '')
+                    crypto_vip = user_data.get('crypto_vip_expiry_date', '')
+                    forex_academy = user_data.get('forex_academy_expiry_date', '')
+                    forex_vip = user_data.get('forex_vip_expiry_date', '')
+                    
+                    subscribed_data.append({
+                        'ID': user_id,
+                        'Name': user_data.get('name', ''),
+                        'Username': user_data.get('username', ''),
+                        'Crypto Academy': crypto_academy,
+                        'Crypto VIP': crypto_vip,
+                        'Forex Academy': forex_academy,
+                        'Forex VIP': forex_vip,
+                        'Registered': user_data.get('registered_date', '')
+                    })
+            
+            except Exception as e:
+                logger.error(f"Error processing user {user_id_str}: {e}")
+                continue
+        
+        if not subscribed_data:
+            bot.answer_callback_query(call.id, "❌ No subscribed users to export.")
+            return
+        
+        # Create CSV
+        output = io.StringIO()
+        fieldnames = ['ID', 'Name', 'Username', 'Crypto Academy', 'Crypto VIP', 'Forex Academy', 'Forex VIP', 'Registered']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for user in subscribed_data:
+            writer.writerow(user)
+        
+        # Convert to bytes
+        csv_data = output.getvalue().encode('utf-8')
+        csv_file = io.BytesIO(csv_data)
+        csv_file.name = f'subscribed_users_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        # Send file
+        bot.send_document(
+            call.from_user.id, 
+            csv_file, 
+            caption=f"📊 Subscribed Users Export\n📅 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n👥 Total Users: {len(subscribed_data)}"
+        )
+        
+        bot.answer_callback_query(call.id, "✅ Exporting subscribed users...")
+        
+    except Exception as e:
+        logger.error(f"Error exporting subscribed users: {e}")
+        bot.answer_callback_query(call.id, "❌ Error exporting data.")
 
 # ====================
 # PROGRAM SELECTION HANDLER
