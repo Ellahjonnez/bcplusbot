@@ -1781,10 +1781,15 @@ def handle_admin_view_all_users(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading users.")
 
 def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
-    """Show all users with details"""
+    """Show all users with details - FIXED VERSION"""
     try:
         # Get all users
         all_users = user_db.get_all_users()
+        
+        # Initialize variables to prevent reference before assignment
+        total_pages = 1
+        end_idx = 0
+        total_users = 0
         
         if not all_users:
             text = "👥 <b>All Users</b>\n\nNo users found in database."
@@ -1823,22 +1828,24 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
                     f"   📅 Registered: {registered}\n"
                     f"   📊 Active: {has_active}\n\n"
                 )
+            text = message_text
         
         # Create inline keyboard for navigation
         kb = types.InlineKeyboardMarkup()
         
-        # Navigation buttons
-        nav_buttons = []
-        if page > 0:
-            nav_buttons.append(types.InlineKeyboardButton("⬅️ Previous", callback_data=f"admin_all_users_page:{page-1}"))
-        
-        nav_buttons.append(types.InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
-        
-        if end_idx < total_users:
-            nav_buttons.append(types.InlineKeyboardButton("Next ➡️", callback_data=f"admin_all_users_page:{page+1}"))
-        
-        if nav_buttons:
-            kb.row(*nav_buttons)
+        # Navigation buttons (only show if there are users)
+        if all_users and total_pages > 1:
+            nav_buttons = []
+            if page > 0:
+                nav_buttons.append(types.InlineKeyboardButton("⬅️ Previous", callback_data=f"admin_all_users_page:{page-1}"))
+            
+            nav_buttons.append(types.InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+            
+            if end_idx < total_users:
+                nav_buttons.append(types.InlineKeyboardButton("Next ➡️", callback_data=f"admin_all_users_page:{page+1}"))
+            
+            if nav_buttons:
+                kb.row(*nav_buttons)
         
         # Add action buttons
         kb.row(
@@ -1851,9 +1858,9 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
         )
         
         if message_id:
-            bot.edit_message_text(message_text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
+            bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
         else:
-            bot.send_message(admin_id, message_text, parse_mode='HTML', reply_markup=kb)
+            bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
         
     except Exception as e:
         logger.error(f"Error showing all users: {e}")
@@ -1876,6 +1883,111 @@ def handle_admin_view_subscribed_users(call: types.CallbackQuery):
     except Exception as e:
         logger.error(f"Error showing subscribed users: {e}")
         bot.answer_callback_query(call.id, "Error loading subscribed users.")
+
+def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int = 0):
+    """Show users with active subscriptions - NEW FIXED FUNCTION"""
+    try:
+        # Get all users
+        all_users = user_db.get_all_users()
+        
+        # Filter users with active subscriptions
+        subscribed_users = []
+        for user_id_str, user_data in all_users.items():
+            user_id = int(user_id_str)
+            if user_db.has_active_subscription(user_id):
+                subscribed_users.append((user_id, user_data))
+        
+        # Initialize variables
+        total_users = len(subscribed_users)
+        total_pages = 1
+        end_idx = 0
+        
+        if not subscribed_users:
+            text = "✅ <b>Active Subscriptions</b>\n\nNo users with active subscriptions found."
+        else:
+            # Sort by user ID
+            subscribed_users.sort(key=lambda x: x[0])
+            
+            # Pagination
+            per_page = 10
+            start_idx = page * per_page
+            end_idx = start_idx + per_page
+            current_page_users = subscribed_users[start_idx:end_idx]
+            
+            total_pages = (total_users + per_page - 1) // per_page
+            
+            message_text = (
+                f"✅ <b>Active Subscriptions ({total_users})</b>\n"
+                f"📅 <i>Page {page + 1} of {total_pages}</i>\n\n"
+            )
+            
+            # Add user details
+            for i, (user_id, user_data) in enumerate(current_page_users, start=start_idx + 1):
+                name = user_data.get('name', 'Unknown')[:20]
+                username = f"@{user_data.get('username')}" if user_data.get('username') else '-'
+                registered = user_data.get('registered_date', 'Unknown')
+                
+                # Get subscription details
+                active_subs = []
+                for program in ['crypto', 'forex']:
+                    for plan in ['academy', 'vip']:
+                        expiry_key = f"{program}_{plan}_expiry_date"
+                        if expiry_key in user_data and user_data[expiry_key]:
+                            try:
+                                expiry_date = datetime.strptime(user_data[expiry_key], '%Y-%m-%d')
+                                if expiry_date.date() >= datetime.now().date():
+                                    active_subs.append(f"{program} {plan}")
+                            except:
+                                active_subs.append(f"{program} {plan}")
+                
+                sub_text = ", ".join(active_subs) if active_subs else "None"
+                
+                message_text += (
+                    f"<b>{i}. ID: {user_id}</b>\n"
+                    f"   👤 {name} | {username}\n"
+                    f"   📅 Registered: {registered}\n"
+                    f"   📊 Active Subscriptions: {sub_text}\n\n"
+                )
+            text = message_text
+        
+        # Create inline keyboard for navigation
+        kb = types.InlineKeyboardMarkup()
+        
+        # Navigation buttons (only show if there are users and more than one page)
+        if subscribed_users and total_pages > 1:
+            nav_buttons = []
+            if page > 0:
+                nav_buttons.append(types.InlineKeyboardButton("⬅️ Previous", callback_data=f"admin_subscribed_page:{page-1}"))
+            
+            nav_buttons.append(types.InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+            
+            if end_idx < total_users:
+                nav_buttons.append(types.InlineKeyboardButton("Next ➡️", callback_data=f"admin_subscribed_page:{page+1}"))
+            
+            if nav_buttons:
+                kb.row(*nav_buttons)
+        
+        # Add action buttons
+        kb.row(
+            types.InlineKeyboardButton("🔄 Refresh", callback_data=f"admin_view_subscribed_users"),
+            types.InlineKeyboardButton("📊 Export to CSV", callback_data="admin_export_subscribed")
+        )
+        kb.row(
+            types.InlineKeyboardButton("👤 View Details", callback_data="admin_view_user_detail_menu"),
+            types.InlineKeyboardButton("📋 Back to Management", callback_data="admin_user_mgmt_back")
+        )
+        
+        if message_id:
+            bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
+        else:
+            bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
+        
+    except Exception as e:
+        logger.error(f"Error showing subscribed users: {e}")
+        if message_id:
+            bot.edit_message_text(f"❌ Error loading subscribed users: {e}", admin_id, message_id)
+        else:
+            bot.send_message(admin_id, f"❌ Error loading subscribed users: {e}")
 
 # ====================
 # ADMIN AFFILIATE MANAGEMENT
@@ -2095,12 +2207,12 @@ def handle_admin_reject_affiliate(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error rejecting affiliate")
 
 # ====================
-# ADMIN CALLBACK HANDLER
+# ADMIN CALLBACK HANDLER - UPDATED WITH NEW FUNCTIONS
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_"))
 def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
-    """Handle admin affiliate management callbacks"""
+    """Handle admin affiliate management callbacks - UPDATED VERSION"""
     try:
         if call.from_user.id not in ADMIN_IDS:
             bot.answer_callback_query(call.id, "❌ Not authorized.")
@@ -2202,6 +2314,7 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         elif action == "admin_view_user_detail_menu":
             show_user_detail_search(call.from_user.id, call.message.message_id)
         
+        # NEW: Handle subscribed users pagination
         elif action.startswith("admin_subscribed_page:"):
             page = int(action.split(":")[1])
             show_subscribed_users_list(call.from_user.id, call.message.message_id, page)
@@ -2350,8 +2463,6 @@ def export_subscribed_users_to_csv(admin_id: int):
             csv_file, 
             caption=f"📊 Subscribed Users Export\n📅 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n👥 Total Users: {len(subscribed_data)}"
         )
-        
-        bot.answer_callback_query(call.id, "✅ Exporting subscribed users...")
         
     except Exception as e:
         logger.error(f"Error exporting subscribed users: {e}")
@@ -5232,7 +5343,7 @@ def handle_program_selection(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error selecting program. Please try again.")
 
 # ====================
-# FLASK WEBHOOK SETUP
+# FLASK WEBHOOK SETUP - FIXED FOR RAILWAY
 # ====================
 
 # Create Flask app for Railway
@@ -5317,19 +5428,28 @@ def set_webhook():
         logger.error(f"❌ Error setting webhook: {e}")
 
 # ====================
-# BOT STARTUP
+# BOT STARTUP - FIXED FOR RAILWAY
 # ====================
 
-if __name__ == "__main__":
-    logger.info("=" * 50)
-    logger.info("Starting BlockchainPlus Hub Bot with Complete Affiliate System...")
-    logger.info(f"Admin IDs: {ADMIN_IDS}")
-    logger.info(f"Tutorial Videos Loaded: {len(TUTORIALS)}")
-    logger.info("=" * 50)
-    
+def run_flask():
+    """Run Flask server in a separate thread"""
+    port = int(os.environ.get('PORT', 8080))
+    logger.info(f"Starting Flask server on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+def start_bot():
+    """Start the Telegram bot with webhook"""
     try:
+        logger.info("=" * 50)
+        logger.info("Starting BlockchainPlus Hub Bot with Complete Affiliate System...")
+        logger.info(f"Admin IDs: {ADMIN_IDS}")
+        logger.info(f"Tutorial Videos Loaded: {len(TUTORIALS)}")
+        logger.info("=" * 50)
+        
         # Start the scheduler for automated reminders
         logger.info("Starting scheduler for automated reminders...")
+        
+        # Add daily expiry check job
         scheduler.add_job(
             check_expiring_subscriptions,
             trigger=CronTrigger(hour=9, minute=0),
@@ -5338,6 +5458,7 @@ if __name__ == "__main__":
             replace_existing=True
         )
         
+        # Add interval expiry check job
         scheduler.add_job(
             check_expiring_subscriptions,
             trigger='interval',
@@ -5347,27 +5468,15 @@ if __name__ == "__main__":
             replace_existing=True
         )
 
-        # ====================
-        # DATABASE BACKUP SCHEDULER
-        # ====================
-
-        # Add backup job (runs every 24 hours)
+        # Add daily backup job
         scheduler.add_job(
-        lambda: user_db.periodic_backup(interval_hours=24),
-        trigger='interval',
-        hours=24,
-        id='daily_backup',
-        name='Daily database backup',
-        replace_existing=True
+            lambda: user_db.periodic_backup(interval_hours=24),
+            trigger='interval',
+            hours=24,
+            id='daily_backup',
+            name='Daily database backup',
+            replace_existing=True
         )
-
-    # Also add an immediate backup on startup
-    
-        backup_file = user_db.periodic_backup()
-        if backup_file:
-            logger.info(f"Initial backup created: {backup_file}")
-    except Exception as e:
-        logger.error(f"Could not create initial backup: {e}")
         
         scheduler.start()
         logger.info("Scheduler started successfully")
@@ -5375,13 +5484,23 @@ if __name__ == "__main__":
         logger.info(f"Grace period: {GRACE_PERIOD_DAYS} days")
         logger.info(f"Affiliate minimum payout: NGN{MINIMUM_PAYOUT:,.2f}")
         
+        # Get bot info
         bot_info = bot.get_me()
         logger.info(f"Bot connected: @{bot_info.username} (ID: {bot_info.id})")
         
+        # Get database stats
         db_stats = user_db.get_database_stats()
         logger.info(f"Database stats - Users: {db_stats.get('total_users', 0)}, "
                    f"Affiliates: {db_stats.get('total_affiliates', 0)}, "
                    f"Active subscriptions: {db_stats.get('active_subscriptions', 0)}")
+        
+        # Create initial backup
+        try:
+            backup_file = user_db.periodic_backup()
+            if backup_file:
+                logger.info(f"Initial backup created: {backup_file}")
+        except Exception as e:
+            logger.error(f"Could not create initial backup: {e}")
         
         # Send startup notification to admins
         for admin_id in ADMIN_IDS:
@@ -5403,15 +5522,28 @@ if __name__ == "__main__":
         # Set webhook for Railway
         set_webhook()
         
-        # Start Flask app for Railway
-        port = int(os.environ.get('PORT', 8080))
-        logger.info(f"Starting Flask webhook server on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=False)
+        logger.info("✅ Bot startup completed successfully")
         
     except Exception as e:
-        logger.error(f"Failed to start bot: {e}")
+        logger.error(f"❌ Failed to start bot: {e}")
         logger.error(traceback.format_exc())
         try:
             scheduler.shutdown()
         except:
             pass
+
+if __name__ == "__main__":
+    # Start the Flask server in a separate thread
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    
+    # Start the bot
+    start_bot()
+    
+    # Keep the main thread alive
+    try:
+        while True:
+            time.sleep(3600)  # Sleep for 1 hour
+    except KeyboardInterrupt:
+        logger.info("Bot shutting down...")
+        scheduler.shutdown()
