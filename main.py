@@ -1686,7 +1686,7 @@ def show_admin_dashboard(admin_id: int, message_id: int = None):
         )
         
         kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        kb.row("📊 Start Permanent", "📅 Extend User")
+        kb.row("📊 Overview", "📅 Extend User")
         kb.row("📋 List Users", "🔍 Check User")
         kb.row("🔗 Test Links", "⏰ Test Reminders")
         kb.row("🤝 Affiliate Management", "💰 Payout Requests")
@@ -1711,12 +1711,12 @@ def show_admin_dashboard(admin_id: int, message_id: int = None):
         bot.send_message(admin_id, f"❌ Error loading dashboard: {e}")
 
 # ====================
-# START PERMANENT BUTTON HANDLER
+# Overview" BUTTON HANDLER
 # ====================
 
-@bot.message_handler(func=lambda m: m.text == "📊 Start Permanent")
+@bot.message_handler(func=lambda m: m.text == "📊 Overview")
 def handle_start_permanent(message: types.Message):
-    """Handle Start Permanent button for admins"""
+    """Handle Overview" button for admins"""
     if message.from_user.id not in ADMIN_IDS:
         bot.send_message(message.chat.id, "❌ Unauthorized access.")
         return
