@@ -1,5 +1,5 @@
 # main.py - Complete Working Bot with All Fixes Applied + Affiliate System + Full Payout Flow
-# COMPLETELY FIXED VERSION WITH STREAMLINED ADMIN DASHBOARD
+# FIXED VERSION WITH UPDATED AFFILIATE BUTTON AND USER DISPLAY
 
 import time
 from typing import Optional, Dict, List, Tuple
@@ -1805,6 +1805,10 @@ def show_user_management_dashboard(admin_id: int, message_id: int = None):
     else:
         bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
 
+# ====================
+# FIXED: SHOW ALL USERS LIST WITH USERNAME DISPLAY
+# ====================
+
 @bot.callback_query_handler(func=lambda c: c.data == "admin_view_all_users")
 def handle_admin_view_all_users(call: types.CallbackQuery):
     """Show all users to admin"""
@@ -1821,7 +1825,7 @@ def handle_admin_view_all_users(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading users.")
 
 def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
-    """Show all users with details - FIXED VERSION"""
+    """Show all users with details - FIXED VERSION with username display"""
     try:
         # Get all users
         all_users = user_db.get_all_users()
@@ -1852,19 +1856,20 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
                 f"📅 <i>Page {page + 1} of {total_pages}</i>\n\n"
             )
             
-            # Add user details
+            # Add user details with username
             for i, (user_id_str, user_data) in enumerate(current_page_users, start=start_idx + 1):
                 user_id = int(user_id_str)
-                name = user_data.get('name', 'Unknown')[:20]
-                username = f"@{user_data.get('username')}" if user_data.get('username') else '-'
+                name = user_data.get('name', 'Unknown')
+                username = f"@{user_data.get('username')}" if user_data.get('username') else 'No username'
                 registered = user_data.get('registered_date', 'Unknown')
                 
                 # Check subscription status using FIXED function
                 has_active = "✅" if has_active_subscription(user_id) else "❌"
                 
                 message_text += (
-                    f"<b>{i}. ID: {user_id}</b>\n"
-                    f"   👤 {name} | {username}\n"
+                    f"<b>{i}. {name}</b>\n"
+                    f"   🆔 ID: {user_id}\n"
+                    f"   📱 {username}\n"
                     f"   📅 Registered: {registered}\n"
                     f"   📊 Active: {has_active}\n\n"
                 )
@@ -1909,6 +1914,10 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
         else:
             bot.send_message(admin_id, f"❌ Error loading users: {e}")
 
+# ====================
+# FIXED: SHOW SUBSCRIBED USERS LIST WITH USERNAME DISPLAY
+# ====================
+
 @bot.callback_query_handler(func=lambda c: c.data == "admin_view_subscribed_users")
 def handle_admin_view_subscribed_users(call: types.CallbackQuery):
     """Show subscribed users list"""
@@ -1925,7 +1934,7 @@ def handle_admin_view_subscribed_users(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading subscribed users.")
 
 def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int = 0):
-    """Show users with active subscriptions - FIXED VERSION"""
+    """Show users with active subscriptions - FIXED VERSION with username display"""
     try:
         # Get all users
         all_users = user_db.get_all_users()
@@ -1961,10 +1970,10 @@ def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int 
                 f"📅 <i>Page {page + 1} of {total_pages}</i>\n\n"
             )
             
-            # Add user details
+            # Add user details with username
             for i, (user_id, user_data) in enumerate(current_page_users, start=start_idx + 1):
-                name = user_data.get('name', 'Unknown')[:20]
-                username = f"@{user_data.get('username')}" if user_data.get('username') else '-'
+                name = user_data.get('name', 'Unknown')
+                username = f"@{user_data.get('username')}" if user_data.get('username') else 'No username'
                 registered = user_data.get('registered_date', 'Unknown')
                 
                 # Get subscription details
@@ -1983,8 +1992,9 @@ def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int 
                 sub_text = ", ".join(active_subs) if active_subs else "None"
                 
                 message_text += (
-                    f"<b>{i}. ID: {user_id}</b>\n"
-                    f"   👤 {name} | {username}\n"
+                    f"<b>{i}. {name}</b>\n"
+                    f"   🆔 ID: {user_id}\n"
+                    f"   📱 {username}\n"
                     f"   📅 Registered: {registered}\n"
                     f"   📊 Active Subscriptions: {sub_text}\n\n"
                 )
@@ -2028,6 +2038,67 @@ def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int 
             bot.edit_message_text(f"❌ Error loading subscribed users: {e}", admin_id, message_id)
         else:
             bot.send_message(admin_id, f"❌ Error loading subscribed users: {e}")
+
+# ====================
+# FIXED: SHOW ALL AFFILIATES WITH USERNAME DISPLAY
+# ====================
+
+def show_all_affiliates(admin_id: int, message_id: int = None):
+    """Show all affiliates to admin - FIXED with username display"""
+    try:
+        affiliates = user_db.get_all_affiliates()
+        
+        if not affiliates:
+            text = "🤝 <b>All Affiliates</b>\n\nNo affiliates found."
+        else:
+            text = f"🤝 <b>All Affiliates ({len(affiliates)})</b>\n\n"
+            
+            total_earnings = 0
+            total_paid = 0
+            total_pending = 0
+            
+            for i, affiliate in enumerate(affiliates[:15], 1):  # Limit to 15
+                name = affiliate.get('name', 'Unknown')
+                username = f"@{affiliate.get('username')}" if affiliate.get('username') else 'No username'
+                earnings = affiliate.get('affiliate_earnings', 0)
+                paid = affiliate.get('affiliate_paid', 0)
+                pending = affiliate.get('affiliate_pending', 0)
+                
+                text += f"<b>{i}. {name}</b>\n"
+                text += f"   🆔 ID: {affiliate['tg_id']}\n"
+                text += f"   📱 {username}\n"
+                text += f"   💰 Earnings: ₦{earnings:,.2f} | Paid: ₦{paid:,.2f} | Pending: ₦{pending:,.2f}\n"
+                text += f"   🔑 Code: {affiliate.get('affiliate_code', 'N/A')}\n\n"
+                
+                total_earnings += earnings
+                total_paid += paid
+                total_pending += pending
+            
+            text += f"📊 <b>Totals:</b>\n"
+            text += f"• Total Earnings: ₦{total_earnings:,.2f}\n"
+            text += f"• Total Paid: ₦{total_paid:,.2f}\n"
+            text += f"• Total Pending: ₦{total_pending:,.2f}\n"
+            
+            if len(affiliates) > 15:
+                text += f"\n... and {len(affiliates) - 15} more affiliates"
+        
+        kb = types.InlineKeyboardMarkup()
+        kb.row(
+            types.InlineKeyboardButton("🔄 Refresh", callback_data="admin_view_affiliates"),
+            types.InlineKeyboardButton("📊 Export Data", callback_data="admin_export_affiliates")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🤝 Back to Management", callback_data="admin_affiliate_mgmt"),
+            types.InlineKeyboardButton("📱 Admin Dashboard", callback_data="admin_back")
+        )
+        
+        if message_id:
+            bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
+        else:
+            bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
+            
+    except Exception as e:
+        logger.error(f"Error showing affiliates: {e}")
 
 # ====================
 # ADMIN AFFILIATE MANAGEMENT
@@ -2121,6 +2192,474 @@ def show_all_payout_requests(admin_id: int, message_id: int = None):
             
     except Exception as e:
         logger.error(f"Error showing payout requests: {e}")
+
+# ====================
+# FIXED: AFFILIATE BUTTON LOGIC IN COMPACT MENU
+# ====================
+
+def send_compact_menu(uid: int, program: str):
+    """Send compact menu with main menu button - FIXED AFFILIATE BUTTON LOGIC"""
+    program_name = "Crypto" if program == "crypto" else "Forex"
+    
+    # Check if user is affiliate
+    user = user_db.fetch_user(uid)
+    is_affiliate = user and user.get('is_affiliate')
+    affiliate_pending = user and user.get('affiliate_status') == 'pending'
+    
+    # Compact keyboard
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    kb.row("📱 Main Menu", "📌 Contact Admin")
+    
+    # FIXED: Show "Affiliate Dashboard" if user is approved affiliate
+    # Show "Become an Affiliate" if user is not approved (including pending and rejected)
+    if is_affiliate:
+        kb.row("🤝 Affiliate Dashboard", "❓ Help")
+    else:
+        kb.row("🤝 Become an Affiliate", "❓ Help")
+    
+    welcome_text = (
+        f"👋 Welcome to BlockchainPlus {program_name} Program!\n\n"
+        f"🔹 <b>Main Menu:</b> Access all features\n"
+        f"🔹 <b>Contact Admin:</b> Get support\n"
+    )
+    
+    if is_affiliate:
+        welcome_text += f"🔹 <b>Affiliate Dashboard:</b> Track earnings & referrals\n"
+    else:
+        welcome_text += f"🔹 <b>Become an Affiliate:</b> Earn commissions\n"
+    
+    welcome_text += f"🔹 <b>Help:</b> Quick assistance\n\n"
+    welcome_text += f"Tap <b>📱 Main Menu</b> to get started!"
+    
+    bot.send_message(uid, welcome_text, parse_mode='HTML', reply_markup=kb)
+
+# ====================
+# FIXED: AFFILIATE BUTTON LOGIC IN MAIN MENU
+# ====================
+
+def show_main_menu_from_callback(uid: int, message_id: int):
+    """Show main menu from callback - FIXED AFFILIATE BUTTON LOGIC"""
+    try:
+        user = user_db.fetch_user(uid)
+        program = user.get('program', 'crypto') if user else 'crypto'
+        
+        program_name = "Crypto" if program == "crypto" else "Forex"
+        
+        # Main menu dashboard
+        menu_text = (
+            f"📱 <b>{program_name} Program Dashboard</b>\n\n"
+            f"Select an option below:\n\n"
+            f"🔹 <b>Account & Subscriptions</b>\n"
+            f"• 👋 Welcome: Program overview\n"
+            f"• ⏳ Check Status: Subscription details\n"
+            f"• 💳 Make Payment: Subscribe/renew\n\n"
+            f"🔹 <b>Learning Resources</b>\n"
+            f"• 🎥 Tutorials: Video learning\n"
+            f"• 🆘 Help: Support & assistance\n\n"
+            f"🔹 <b>Settings & Support</b>\n"
+            f"• 📌 Contact: Admin support\n"
+            f"• 🔄 Switch: Change program\n"
+            f"• ❓ Help: Quick assistance\n"
+        )
+        
+        # Add affiliate option based on user status
+        if user and user.get('is_affiliate'):
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Track earnings\n"
+        elif user and user.get('affiliate_status') == 'pending':
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
+        else:
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become an Affiliate: Earn commissions\n"
+        
+        # Create inline keyboard for main menu
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        
+        # Account & Subscriptions
+        kb.row(
+            types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
+            types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
+        )
+        kb.row(
+            types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
+            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
+            types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
+            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
+        )
+        
+        # FIXED: Add affiliate button based on user status
+        if user and user.get('is_affiliate'):
+            kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
+        elif user and user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
+        else:
+            kb.row(types.InlineKeyboardButton("🤝 Become an Affiliate", callback_data="affiliate_apply"))
+        
+        bot.edit_message_text(
+            menu_text,
+            uid,
+            message_id,
+            parse_mode='HTML',
+            reply_markup=kb
+        )
+        
+    except Exception as e:
+        logger.error(f"Error showing main menu from callback: {e}")
+        bot.send_message(uid, "Error loading menu. Please try again.")
+
+# ====================
+# FIXED: MAIN MENU SHOW FUNCTION
+# ====================
+
+@bot.message_handler(func=lambda m: m.text == "📱 Main Menu")
+def show_main_menu(message: types.Message):
+    """Show main menu dashboard - FIXED AFFILIATE BUTTON LOGIC"""
+    try:
+        uid = message.from_user.id
+        user = user_db.fetch_user(uid)
+        program = user.get('program', 'crypto') if user else 'crypto'
+        
+        program_name = "Crypto" if program == "crypto" else "Forex"
+        
+        # Main menu dashboard
+        menu_text = (
+            f"📱 <b>{program_name} Program Dashboard</b>\n\n"
+            f"Select an option below:\n\n"
+            f"🔹 <b>Account & Subscriptions</b>\n"
+            f"• 👋 Welcome: Program overview\n"
+            f"• ⏳ Check Status: Subscription details\n"
+            f"• 💳 Make Payment: Subscribe/renew\n\n"
+            f"🔹 <b>Learning Resources</b>\n"
+            f"• 🎥 Tutorials: Video learning\n"
+            f"• 🆘 Help: Support & assistance\n\n"
+            f"🔹 <b>Settings & Support</b>\n"
+            f"• 📌 Contact: Admin support\n"
+            f"• 🔄 Switch: Change program\n"
+            f"• ❓ Help: Quick assistance\n"
+        )
+        
+        # Add affiliate option based on user status
+        if user and user.get('is_affiliate'):
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Track earnings\n"
+        elif user and user.get('affiliate_status') == 'pending':
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
+        else:
+            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become an Affiliate: Earn commissions\n"
+        
+        # Create inline keyboard for main menu
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        
+        # Account & Subscriptions
+        kb.row(
+            types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
+            types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
+        )
+        kb.row(
+            types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
+            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
+            types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
+        )
+        kb.row(
+            types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
+            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
+        )
+        
+        # FIXED: Add affiliate button based on user status
+        if user and user.get('is_affiliate'):
+            kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
+        elif user and user.get('affiliate_status') == 'pending':
+            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
+        else:
+            kb.row(types.InlineKeyboardButton("🤝 Become an Affiliate", callback_data="affiliate_apply"))
+        
+        bot.send_message(uid, menu_text, parse_mode='HTML', reply_markup=kb)
+        
+    except Exception as e:
+        logger.error(f"Error showing main menu: {e}")
+        bot.send_message(message.chat.id, "Error loading menu. Please try again.")
+
+# ====================
+# FIXED: AFFILIATE BUTTON HANDLER FOR REPLY KEYBOARD
+# ====================
+
+@bot.message_handler(func=lambda m: m.text in ["🤝 Affiliate Dashboard", "🤝 Become an Affiliate"])
+def handle_affiliate_button(message: types.Message):
+    """Handle affiliate button clicks from reply keyboard - FIXED VERSION"""
+    try:
+        uid = message.from_user.id
+        
+        # Check user status
+        user = user_db.fetch_user(uid)
+        
+        if not user:
+            # User not in database yet
+            handle_affiliate_registration(message)
+            return
+        
+        affiliate_status = user.get('affiliate_status')
+        is_affiliate = user.get('is_affiliate', False)
+        
+        if is_affiliate:
+            # User is already an approved affiliate
+            show_affiliate_dashboard(uid)
+        elif affiliate_status == 'pending':
+            # Application pending
+            show_affiliate_pending_status(uid)
+        else:
+            # Not applied yet or was rejected
+            handle_affiliate_registration(message)
+            
+    except Exception as e:
+        logger.error(f"Error handling affiliate button: {e}")
+
+# ====================
+# FIXED: AFFILIATE DASHBOARD FUNCTION
+# ====================
+
+def show_affiliate_dashboard(uid: int, message_id: int = None):
+    """Show affiliate dashboard with stats and earnings - FIXED VERSION"""
+    try:
+        user = user_db.fetch_user(uid)
+        if not user or not user.get('is_affiliate'):
+            if message_id:
+                bot.edit_message_text(
+                    "You need to be an approved affiliate to access the dashboard.",
+                    uid,
+                    message_id
+                )
+            else:
+                bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
+            return
+        
+        affiliate_code = user.get('affiliate_code', 'N/A')
+        bot_username = bot.get_me().username
+        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
+        
+        # Get affiliate stats
+        stats = user_db.get_affiliate_stats(uid)
+        
+        text = (
+            f"📊 <b>Affiliate Dashboard</b>\n\n"
+            f"🔑 <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
+            f"🔗 <b>Your Referral Link:</b>\n"
+            f"<code>{referral_link}</code>\n\n"
+            f"📈 <b>Performance Stats:</b>\n"
+            f"• Total Referrals: {stats.get('total_referrals', 0)}\n"
+            f"• Active Referrals: {stats.get('active_referrals', 0)}\n"
+            f"• Total Earnings: <b>₦{stats.get('total_earnings', 0):,.2f}</b>\n"
+            f"• Pending Payout: <b>₦{stats.get('pending_payout', 0):,.2f}</b>\n"
+            f"• Total Paid Out: <b>₦{stats.get('total_paid', 0):,.2f}</b>\n\n"
+            f"💰 <b>Available for Payout:</b> <b>₦{stats.get('available_balance', 0):,.2f}</b>\n"
+            f"🎯 <b>Minimum Payout:</b> ₦{MINIMUM_PAYOUT:,.2f}\n\n"
+            f"<b>Commission Structure:</b>\n"
+            f"• Academy: 30%\n"
+            f"• VIP Monthly: 15%\n"
+            f"• VIP 3-6 Months: 20%\n"
+            f"• VIP Yearly: 20%\n\n"
+            f"<b>Recent Commissions:</b>\n"
+        )
+        
+        # Add recent commissions
+        recent_commissions = user_db.get_recent_commissions(uid, limit=5)
+        if recent_commissions:
+            for i, commission in enumerate(recent_commissions[:5], 1):
+                text += f"{i}. ₦{commission['amount']:,.2f} - {commission['plan_type']}\n"
+        else:
+            text += "No commissions yet. Start sharing your link!\n"
+        
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        kb.row(
+            types.InlineKeyboardButton("📋 Copy Referral Link", callback_data="affiliate_copy_link"),
+            types.InlineKeyboardButton("💰 Request Payout", callback_data="affiliate_request_payout")
+        )
+        kb.row(
+            types.InlineKeyboardButton("📊 View All Referrals", callback_data="affiliate_view_referrals"),
+            types.InlineKeyboardButton("💸 Commission History", callback_data="affiliate_commission_history")
+        )
+        kb.row(
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
+            types.InlineKeyboardButton("🔄 Refresh", callback_data="affiliate_refresh")
+        )
+        
+        if message_id:
+            bot.edit_message_text(text, uid, message_id, parse_mode='HTML', reply_markup=kb)
+        else:
+            bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
+            
+    except Exception as e:
+        logger.error(f"Error showing affiliate dashboard: {e}")
+
+# ====================
+# FIXED: AFFILIATE CALLBACK HANDLER
+# ====================
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("affiliate_"))
+def handle_affiliate_callbacks(call: types.CallbackQuery):
+    """Handle all affiliate-related callbacks - FIXED VERSION"""
+    try:
+        uid = call.from_user.id
+        action = call.data.replace("affiliate_", "")
+        
+        if action == "copy_link":
+            # Copy referral link to clipboard (simulated)
+            user = user_db.fetch_user(uid)
+            if user and user.get('is_affiliate'):
+                affiliate_code = user.get('affiliate_code')
+                bot_username = bot.get_me().username
+                referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
+                
+                bot.answer_callback_query(
+                    call.id,
+                    f"✅ Link copied to clipboard!\n\nShare: {referral_link}",
+                    show_alert=True
+                )
+        
+        elif action == "request_payout":
+            # Request payout
+            handle_payout_request(uid, call.message.message_id)
+        
+        elif action == "view_referrals":
+            # View all referrals
+            show_all_referrals(uid, call.message.message_id)
+        
+        elif action == "commission_history":
+            # View commission history
+            show_commission_history(uid, call.message.message_id)
+        
+        elif action == "refresh":
+            # Refresh dashboard
+            show_affiliate_dashboard(uid, call.message.message_id)
+        
+        elif action == "dashboard":
+            # Show dashboard
+            show_affiliate_dashboard(uid, call.message.message_id)
+        
+        elif action == "view_commission":
+            # Show commission structure
+            show_commission_structure(uid, call.message.message_id)
+            
+    except Exception as e:
+        logger.error(f"Error in affiliate callback: {e}")
+        bot.answer_callback_query(call.id, "Error processing request")
+
+# ====================
+# FIXED: AFFILIATE REGISTRATION FUNCTION
+# ====================
+
+def handle_affiliate_registration(message: types.Message):
+    """Handle affiliate registration"""
+    try:
+        uid = message.from_user.id
+        
+        # Send affiliate program details
+        text = (
+            "🤝 <b>BlockchainPlus Affiliate Program</b>\n\n"
+            "<b>Earn Commissions by Referring New Members!</b>\n\n"
+            
+            "💰 <b>Commission Structure:</b>\n"
+            "• Academy Subscription: <b>30% commission</b>\n"
+            "• VIP Monthly: <b>15% commission</b>\n"
+            "• VIP 3-6 Months: <b>20% commission</b>\n"
+            "• VIP Yearly: <b>20% commission</b>\n\n"
+            
+            "🎯 <b>Minimum Payout: ₦10,000</b>\n"
+            "• Request payout when you reach ₦10,000+\n"
+            "• Payouts processed within 7 business days\n\n"
+            
+            "📈 <b>How It Works:</b>\n"
+            "1. Apply to become an affiliate\n"
+            "2. Get your unique referral link\n"
+            "3. Share your link with others\n"
+            "4. Earn commissions when they subscribe\n"
+            "5. Request payout when you reach minimum\n\n"
+            
+            "✅ <b>Ready to start earning?</b>\n"
+            "Apply now and start earning commissions!"
+        )
+        
+        kb = types.InlineKeyboardMarkup()
+        kb.row(
+            types.InlineKeyboardButton("✅ Apply Now", callback_data="affiliate_apply"),
+            types.InlineKeyboardButton("💰 View Commission Structure", callback_data="affiliate_view_commission")
+        )
+        kb.row(
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
+        )
+        
+        bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
+        
+    except Exception as e:
+        logger.error(f"Error in affiliate registration: {e}")
+
+# ====================
+# FIXED: AFFILIATE APPLICATION FUNCTION
+# ====================
+
+@bot.callback_query_handler(func=lambda c: c.data == "affiliate_apply")
+def handle_affiliate_application(call: types.CallbackQuery):
+    """Handle affiliate application submission - FIXED VERSION"""
+    try:
+        uid = call.from_user.id
+        
+        # Check if already applied or is affiliate
+        user = user_db.fetch_user(uid)
+        if user:
+            if user.get('is_affiliate'):
+                bot.answer_callback_query(call.id, "✅ You're already an approved affiliate!")
+                show_affiliate_dashboard(uid, call.message.message_id)
+                return
+            
+            if user.get('affiliate_status') == 'pending':
+                bot.answer_callback_query(call.id, "⏳ Your application is pending approval")
+                show_affiliate_pending_status(uid)
+                return
+        
+        # Generate unique affiliate code
+        affiliate_code = generate_affiliate_code(uid)
+        
+        # Update user with affiliate application
+        user_db.set_affiliate_status(uid, 'pending', affiliate_code)
+        
+        # Send confirmation to user
+        bot.answer_callback_query(call.id, "✅ Application submitted for admin approval!")
+        text = (
+            "📋 <b>Affiliate Application Submitted!</b>\n\n"
+            "Your application has been sent for admin approval.\n"
+            "You'll receive a notification when it's approved.\n\n"
+            "<b>In the meantime, you can:</b>\n"
+            "• Review the commission structure\n"
+            "• Plan your referral strategy\n"
+            "• Prepare to start earning!\n\n"
+            "You'll get your unique referral link after approval."
+        )
+        
+        kb = types.InlineKeyboardMarkup()
+        kb.row(
+            types.InlineKeyboardButton("💰 Review Commission Structure", callback_data="affiliate_view_commission"),
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
+        )
+        
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode='HTML',
+            reply_markup=kb
+        )
+        
+        # Notify all admins
+        notify_admin_affiliate_application(uid, call.from_user.first_name, affiliate_code)
+        
+    except Exception as e:
+        logger.error(f"Error in affiliate application: {e}")
+        bot.answer_callback_query(call.id, "Error submitting application")
 
 # ====================
 # FIXED: AFFILIATE APPROVAL HANDLERS
@@ -2384,6 +2923,10 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
         logger.error(f"Error in admin affiliate callback: {e}")
         bot.answer_callback_query(call.id, f"❌ Error: {str(e)}")
 
+# ====================
+# EXPORT FUNCTIONS
+# ====================
+
 def export_all_users_to_csv(admin_id: int):
     """Export all users data to CSV"""
     try:
@@ -2591,7 +3134,7 @@ def process_user_detail_search(message: types.Message):
         bot.send_message(message.chat.id, f"❌ Error: {e}")
 
 def show_user_details(admin_id: int, user_id: int):
-    """Show detailed user information"""
+    """Show detailed user information - FIXED with username display"""
     try:
         user = user_db.fetch_user(user_id)
         
@@ -2621,10 +3164,11 @@ def show_user_details(admin_id: int, user_id: int):
         referred_by = user.get('referred_by', 'Not referred')
         
         text = (
-            f"👤 <b>User Details - ID: {user_id}</b>\n\n"
+            f"👤 <b>User Details</b>\n\n"
             f"<b>Basic Information:</b>\n"
             f"• Name: {name}\n"
             f"• Username: {username}\n"
+            f"• User ID: <code>{user_id}</code>\n"
             f"• Program: {program}\n"
             f"• Registered: {registered}\n\n"
             
@@ -2672,6 +3216,10 @@ def show_user_details(admin_id: int, user_id: int):
     except Exception as e:
         logger.error(f"Error showing user details: {e}")
         bot.send_message(admin_id, f"❌ Error loading user details: {e}")
+
+# ====================
+# OTHER ADMIN FUNCTIONS (KEPT FOR COMPLETENESS)
+# ====================
 
 def mark_payout_paid(admin_id: int, payout_id: str, message_id: int = None):
     """Mark payout as paid"""
@@ -2764,60 +3312,6 @@ def reject_payout_request(admin_id: int, payout_id: str, message_id: int = None)
     except Exception as e:
         logger.error(f"Error rejecting payout: {e}")
         bot.send_message(admin_id, f"Error: {e}")
-
-def show_all_affiliates(admin_id: int, message_id: int = None):
-    """Show all affiliates to admin"""
-    try:
-        affiliates = user_db.get_all_affiliates()
-        
-        if not affiliates:
-            text = "🤝 <b>All Affiliates</b>\n\nNo affiliates found."
-        else:
-            text = f"🤝 <b>All Affiliates ({len(affiliates)})</b>\n\n"
-            
-            total_earnings = 0
-            total_paid = 0
-            total_pending = 0
-            
-            for i, affiliate in enumerate(affiliates[:15], 1):  # Limit to 15
-                name = affiliate.get('name', 'Unknown')[:20]
-                earnings = affiliate.get('affiliate_earnings', 0)
-                paid = affiliate.get('affiliate_paid', 0)
-                pending = affiliate.get('affiliate_pending', 0)
-                
-                text += f"{i}. {name} (ID: {affiliate['tg_id']})\n"
-                text += f"   Earnings: ₦{earnings:,.2f} | Paid: ₦{paid:,.2f} | Pending: ₦{pending:,.2f}\n"
-                text += f"   Code: {affiliate.get('affiliate_code', 'N/A')}\n\n"
-                
-                total_earnings += earnings
-                total_paid += paid
-                total_pending += pending
-            
-            text += f"📊 <b>Totals:</b>\n"
-            text += f"• Total Earnings: ₦{total_earnings:,.2f}\n"
-            text += f"• Total Paid: ₦{total_paid:,.2f}\n"
-            text += f"• Total Pending: ₦{total_pending:,.2f}\n"
-            
-            if len(affiliates) > 15:
-                text += f"\n... and {len(affiliates) - 15} more affiliates"
-        
-        kb = types.InlineKeyboardMarkup()
-        kb.row(
-            types.InlineKeyboardButton("🔄 Refresh", callback_data="admin_view_affiliates"),
-            types.InlineKeyboardButton("📊 Export Data", callback_data="admin_export_affiliates")
-        )
-        kb.row(
-            types.InlineKeyboardButton("🤝 Back to Management", callback_data="admin_affiliate_mgmt"),
-            types.InlineKeyboardButton("📱 Admin Dashboard", callback_data="admin_back")
-        )
-        
-        if message_id:
-            bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
-        else:
-            bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
-            
-    except Exception as e:
-        logger.error(f"Error showing affiliates: {e}")
 
 def show_commission_report(admin_id: int, message_id: int = None):
     """Show commission report to admin"""
@@ -3190,181 +3684,6 @@ def handle_start(message: types.Message):
             pass
 
 # ====================
-# COMPACT MENU SYSTEM
-# ====================
-
-def send_compact_menu(uid: int, program: str):
-    """Send compact menu with main menu button"""
-    program_name = "Crypto" if program == "crypto" else "Forex"
-    
-    # Check if user is affiliate
-    user = user_db.fetch_user(uid)
-    is_affiliate = user and user.get('is_affiliate')
-    affiliate_pending = user and user.get('affiliate_status') == 'pending'
-    
-    # Compact keyboard
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    kb.row("📱 Main Menu", "📌 Contact Admin")
-    
-    if is_affiliate:
-        kb.row("🤝 Affiliate Dashboard", "❓ Help")
-    elif affiliate_pending:
-        kb.row("⏳ Affiliate Pending", "❓ Help")
-    else:
-        kb.row("🤝 Become Affiliate", "❓ Help")
-    
-    welcome_text = (
-        f"👋 Welcome to BlockchainPlus {program_name} Program!\n\n"
-        f"🔹 <b>Main Menu:</b> Access all features\n"
-        f"🔹 <b>Contact Admin:</b> Get support\n"
-    )
-    
-    if is_affiliate:
-        welcome_text += f"🔹 <b>Affiliate Dashboard:</b> Track earnings & referrals\n"
-    elif affiliate_pending:
-        welcome_text += f"🔹 <b>Affiliate Status:</b> Application pending approval\n"
-    else:
-        welcome_text += f"🔹 <b>Become Affiliate:</b> Earn commissions\n"
-    
-    welcome_text += f"🔹 <b>Help:</b> Quick assistance\n\n"
-    welcome_text += f"Tap <b>📱 Main Menu</b> to get started!"
-    
-    bot.send_message(uid, welcome_text, parse_mode='HTML', reply_markup=kb)
-
-@bot.message_handler(func=lambda m: m.text == "📱 Main Menu")
-def show_main_menu(message: types.Message):
-    """Show main menu dashboard"""
-    try:
-        uid = message.from_user.id
-        user = user_db.fetch_user(uid)
-        program = user.get('program', 'crypto') if user else 'crypto'
-        
-        program_name = "Crypto" if program == "crypto" else "Forex"
-        
-        # Main menu dashboard
-        menu_text = (
-            f"📱 <b>{program_name} Program Dashboard</b>\n\n"
-            f"Select an option below:\n\n"
-            f"🔹 <b>Account & Subscriptions</b>\n"
-            f"• 👋 Welcome: Program overview\n"
-            f"• ⏳ Check Status: Subscription details\n"
-            f"• 💳 Make Payment: Subscribe/renew\n\n"
-            f"🔹 <b>Learning Resources</b>\n"
-            f"• 🎥 Tutorials: Video learning\n"
-            f"• 🆘 Help: Support & assistance\n\n"
-            f"🔹 <b>Settings & Support</b>\n"
-            f"• 📌 Contact: Admin support\n"
-            f"• 🔄 Switch: Change program\n"
-            f"• ❓ Help: Quick assistance\n"
-        )
-        
-        # Add affiliate option if user is approved affiliate
-        if user and user.get('is_affiliate'):
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Earn commissions\n"
-        elif user and user.get('affiliate_status') == 'pending':
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
-        else:
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become Affiliate: Earn commissions\n"
-        
-        # Create inline keyboard for main menu
-        kb = types.InlineKeyboardMarkup(row_width=2)
-        
-        # Account & Subscriptions
-        kb.row(
-            types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
-            types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
-        )
-        kb.row(
-            types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
-            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
-        )
-        kb.row(
-            types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
-            types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
-        )
-        kb.row(
-            types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
-            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
-        )
-        
-        # Add affiliate button if user is approved affiliate
-        if user and user.get('is_affiliate'):
-            kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
-        
-        # Add affiliate registration button if not an affiliate and not pending
-        elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
-            kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
-        
-        # Show pending status if application is pending
-        elif user and user.get('affiliate_status') == 'pending':
-            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
-        
-        bot.send_message(uid, menu_text, parse_mode='HTML', reply_markup=kb)
-        
-    except Exception as e:
-        logger.error(f"Error showing main menu: {e}")
-        bot.send_message(message.chat.id, "Error loading menu. Please try again.")
-
-@bot.callback_query_handler(func=lambda c: c.data == "affiliate_pending")
-def handle_affiliate_pending(call: types.CallbackQuery):
-    """Handle affiliate pending status"""
-    try:
-        uid = call.from_user.id
-        text = (
-            "⏳ <b>Affiliate Application Status</b>\n\n"
-            "Your affiliate application is currently pending approval.\n\n"
-            "Our team will review your application and notify you once it's approved.\n\n"
-            "You'll receive:\n"
-            "• Your unique affiliate code\n"
-            "• Your personal referral link\n"
-            "• Access to the affiliate dashboard\n\n"
-            "Thank you for your patience!"
-        )
-        
-        kb = types.InlineKeyboardMarkup()
-        kb.row(
-            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
-            types.InlineKeyboardButton("📞 Contact Admin", callback_data="mainmenu_contact")
-        )
-        
-        bot.edit_message_text(
-            text,
-            call.message.chat.id,
-            call.message.message_id,
-            parse_mode='HTML',
-            reply_markup=kb
-        )
-        bot.answer_callback_query(call.id)
-        
-    except Exception as e:
-        logger.error(f"Error in affiliate pending: {e}")
-
-@bot.message_handler(func=lambda m: m.text == "❓ Help")
-def quick_help(message: types.Message):
-    """Quick help shortcut"""
-    uid = message.from_user.id
-    quick_help_text = (
-        "❓ <b>Quick Help</b>\n\n"
-        "<b>Need assistance?</b>\n"
-        "• Tap 📱 Main Menu for all options\n"
-        "• Use 🆘 Help in menu for detailed help\n"
-        "• Contact admin: @blockchainpluspro\n\n"
-        "<b>Common Questions:</b>\n"
-        "• Payment issues? Check Payment Help\n"
-        "• Can't join groups? Contact admin\n"
-        "• Want to change program? Use Switch\n\n"
-        "<b>Need more help?</b> Tap below:"
-    )
-    
-    kb = types.InlineKeyboardMarkup()
-    kb.row(
-        types.InlineKeyboardButton("📱 Open Main Menu", callback_data="mainmenu_back"),
-        types.InlineKeyboardButton("🆘 Detailed Help", callback_data="mainmenu_help")
-    )
-    
-    bot.send_message(uid, quick_help_text, parse_mode='HTML', reply_markup=kb)
-
-# ====================
 # MAIN MENU CALLBACK HANDLER
 # ====================
 
@@ -3409,83 +3728,9 @@ def handle_main_menu(call: types.CallbackQuery):
         logger.error(f"Error in main menu handler: {e}")
         bot.answer_callback_query(call.id, "Error loading menu. Please try again.")
 
-def show_main_menu_from_callback(uid: int, message_id: int):
-    """Show main menu from callback"""
-    try:
-        user = user_db.fetch_user(uid)
-        program = user.get('program', 'crypto') if user else 'crypto'
-        
-        program_name = "Crypto" if program == "crypto" else "Forex"
-        
-        # Main menu dashboard
-        menu_text = (
-            f"📱 <b>{program_name} Program Dashboard</b>\n\n"
-            f"Select an option below:\n\n"
-            f"🔹 <b>Account & Subscriptions</b>\n"
-            f"• 👋 Welcome: Program overview\n"
-            f"• ⏳ Check Status: Subscription details\n"
-            f"• 💳 Make Payment: Subscribe/renew\n\n"
-            f"🔹 <b>Learning Resources</b>\n"
-            f"• 🎥 Tutorials: Video learning\n"
-            f"• 🆘 Help: Support & assistance\n\n"
-            f"🔹 <b>Settings & Support</b>\n"
-            f"• 📌 Contact: Admin support\n"
-            f"• 🔄 Switch: Change program\n"
-            f"• ❓ Help: Quick assistance\n"
-        )
-        
-        # Add affiliate option if user is approved affiliate
-        if user and user.get('is_affiliate'):
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Affiliate Dashboard: Earn commissions\n"
-        elif user and user.get('affiliate_status') == 'pending':
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• ⏳ Affiliate Application: Pending approval\n"
-        else:
-            menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become Affiliate: Earn commissions\n"
-        
-        # Create inline keyboard for main menu
-        kb = types.InlineKeyboardMarkup(row_width=2)
-        
-        # Account & Subscriptions
-        kb.row(
-            types.InlineKeyboardButton("👋 Welcome", callback_data="mainmenu_welcome"),
-            types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status")
-        )
-        kb.row(
-            types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment"),
-            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
-        )
-        kb.row(
-            types.InlineKeyboardButton("🆘 Help Center", callback_data="mainmenu_help"),
-            types.InlineKeyboardButton("📌 Contact Admin", callback_data="mainmenu_contact")
-        )
-        kb.row(
-            types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
-            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
-        )
-        
-        # Add affiliate button if user is approved affiliate
-        if user and user.get('is_affiliate'):
-            kb.row(types.InlineKeyboardButton("🤝 Affiliate Dashboard", callback_data="affiliate_dashboard"))
-        
-        # Add affiliate registration button if not an affiliate and not pending
-        elif user and not user.get('is_affiliate') and not user.get('affiliate_status') == 'pending':
-            kb.row(types.InlineKeyboardButton("🤝 Become Affiliate", callback_data="affiliate_apply"))
-        
-        # Show pending status if application is pending
-        elif user and user.get('affiliate_status') == 'pending':
-            kb.row(types.InlineKeyboardButton("⏳ Affiliate Pending", callback_data="affiliate_pending"))
-        
-        bot.edit_message_text(
-            menu_text,
-            uid,
-            message_id,
-            parse_mode='HTML',
-            reply_markup=kb
-        )
-        
-    except Exception as e:
-        logger.error(f"Error showing main menu from callback: {e}")
-        bot.send_message(uid, "Error loading menu. Please try again.")
+# ====================
+# HELPER FUNCTIONS FOR MAIN MENU (KEPT FOR COMPLETENESS)
+# ====================
 
 def show_welcome(uid: int, message_id: int = None):
     """Show welcome message"""
@@ -3657,7 +3902,7 @@ def show_payment_menu(uid: int, message_id: int = None):
         bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
 
 # ====================
-# TUTORIALS SECTION
+# TUTORIALS SECTION (KEPT FOR COMPLETENESS)
 # ====================
 
 def show_tutorials_menu(uid: int, message_id: int = None):
@@ -4002,7 +4247,7 @@ def show_tutorial_search(uid: int, message_id: int):
         )
 
 # ====================
-# HELP SECTION
+# HELP SECTION (KEPT FOR COMPLETENESS)
 # ====================
 
 def show_help_menu(uid: int, message_id: int = None):
@@ -4427,7 +4672,7 @@ def menu_contact(message: types.Message):
     show_contact_admin(message.chat.id)
 
 # ====================
-# PAYMENT FLOW
+# PAYMENT FLOW (KEPT FOR COMPLETENESS)
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("choose_"))
@@ -5007,38 +5252,8 @@ def on_admin_reject(call: types.CallbackQuery):
         logger.error(f"Error in admin reject: {e}")
 
 # ====================
-# AFFILIATE SYSTEM HANDLERS
+# FIXED: AFFILIATE PENDING STATUS FUNCTION
 # ====================
-
-@bot.message_handler(func=lambda m: m.text in ["🤝 Become Affiliate", "⏳ Affiliate Pending"])
-def handle_affiliate_button(message: types.Message):
-    """Handle affiliate button clicks"""
-    try:
-        uid = message.from_user.id
-        
-        # Check user status
-        user = user_db.fetch_user(uid)
-        
-        if not user:
-            # User not in database yet
-            handle_affiliate_registration(message)
-            return
-        
-        affiliate_status = user.get('affiliate_status')
-        is_affiliate = user.get('is_affiliate', False)
-        
-        if is_affiliate:
-            # User is already an approved affiliate
-            show_affiliate_dashboard(uid)
-        elif affiliate_status == 'pending':
-            # Application pending
-            show_affiliate_pending_status(uid)
-        else:
-            # Not applied yet or was rejected
-            handle_affiliate_registration(message)
-            
-    except Exception as e:
-        logger.error(f"Error handling affiliate button: {e}")
 
 def show_affiliate_pending_status(uid: int):
     """Show affiliate pending status"""
@@ -5061,93 +5276,26 @@ def show_affiliate_pending_status(uid: int):
     
     bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
 
-def handle_affiliate_registration(message: types.Message):
-    """Handle affiliate registration"""
-    try:
-        uid = message.from_user.id
-        
-        # Send affiliate program details
-        text = (
-            "🤝 <b>BlockchainPlus Affiliate Program</b>\n\n"
-            "<b>Earn Commissions by Referring New Members!</b>\n\n"
-            
-            "💰 <b>Commission Structure:</b>\n"
-            "• Academy Subscription: <b>30% commission</b>\n"
-            "• VIP Monthly: <b>15% commission</b>\n"
-            "• VIP 3-6 Months: <b>20% commission</b>\n"
-            "• VIP Yearly: <b>20% commission</b>\n\n"
-            
-            "🎯 <b>Minimum Payout: ₦10,000</b>\n"
-            "• Request payout when you reach ₦10,000+\n"
-            "• Payouts processed within 7 business days\n\n"
-            
-            "📈 <b>How It Works:</b>\n"
-            "1. Apply to become an affiliate\n"
-            "2. Get your unique referral link\n"
-            "3. Share your link with others\n"
-            "4. Earn commissions when they subscribe\n"
-            "5. Request payout when you reach minimum\n\n"
-            
-            "✅ <b>Ready to start earning?</b>\n"
-            "Apply now and start earning commissions!"
-        )
-        
-        kb = types.InlineKeyboardMarkup()
-        kb.row(
-            types.InlineKeyboardButton("✅ Apply Now", callback_data="affiliate_apply"),
-            types.InlineKeyboardButton("💰 View Commission Structure", callback_data="affiliate_view_commission")
-        )
-        kb.row(
-            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
-        )
-        
-        bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
-        
-    except Exception as e:
-        logger.error(f"Error in affiliate registration: {e}")
-
-@bot.callback_query_handler(func=lambda c: c.data == "affiliate_apply")
-def handle_affiliate_application(call: types.CallbackQuery):
-    """Handle affiliate application submission"""
+@bot.callback_query_handler(func=lambda c: c.data == "affiliate_pending")
+def handle_affiliate_pending(call: types.CallbackQuery):
+    """Handle affiliate pending status callback"""
     try:
         uid = call.from_user.id
-        
-        # Check if already applied or is affiliate
-        user = user_db.fetch_user(uid)
-        if user:
-            if user.get('is_affiliate'):
-                bot.answer_callback_query(call.id, "✅ You're already an approved affiliate!")
-                show_affiliate_dashboard(uid, call.message.message_id)
-                return
-            
-            if user.get('affiliate_status') == 'pending':
-                bot.answer_callback_query(call.id, "⏳ Your application is pending approval")
-                show_affiliate_pending_status(uid)
-                return
-        
-        # Generate unique affiliate code
-        affiliate_code = generate_affiliate_code(uid)
-        
-        # Update user with affiliate application
-        user_db.set_affiliate_status(uid, 'pending', affiliate_code)
-        
-        # Send confirmation to user
-        bot.answer_callback_query(call.id, "✅ Application submitted for admin approval!")
         text = (
-            "📋 <b>Affiliate Application Submitted!</b>\n\n"
-            "Your application has been sent for admin approval.\n"
-            "You'll receive a notification when it's approved.\n\n"
-            "<b>In the meantime, you can:</b>\n"
-            "• Review the commission structure\n"
-            "• Plan your referral strategy\n"
-            "• Prepare to start earning!\n\n"
-            "You'll get your unique referral link after approval."
+            "⏳ <b>Affiliate Application Status</b>\n\n"
+            "Your affiliate application is currently pending approval.\n\n"
+            "Our team will review your application and notify you once it's approved.\n\n"
+            "You'll receive:\n"
+            "• Your unique affiliate code\n"
+            "• Your personal referral link\n"
+            "• Access to the affiliate dashboard\n\n"
+            "Thank you for your patience!"
         )
         
         kb = types.InlineKeyboardMarkup()
         kb.row(
-            types.InlineKeyboardButton("💰 Review Commission Structure", callback_data="affiliate_view_commission"),
-            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back")
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
+            types.InlineKeyboardButton("📞 Contact Admin", callback_data="mainmenu_contact")
         )
         
         bot.edit_message_text(
@@ -5157,162 +5305,14 @@ def handle_affiliate_application(call: types.CallbackQuery):
             parse_mode='HTML',
             reply_markup=kb
         )
-        
-        # Notify all admins
-        notify_admin_affiliate_application(uid, call.from_user.first_name, affiliate_code)
+        bot.answer_callback_query(call.id)
         
     except Exception as e:
-        logger.error(f"Error in affiliate application: {e}")
-        bot.answer_callback_query(call.id, "Error submitting application")
+        logger.error(f"Error in affiliate pending: {e}")
 
-def notify_admin_affiliate_application(user_id: int, user_name: str, affiliate_code: str):
-    """Notify admins about new affiliate application"""
-    try:
-        text = (
-            "📋 <b>New Affiliate Application</b>\n\n"
-            f"👤 <b>Applicant:</b> {user_name or 'Unknown'}\n"
-            f"🆔 <b>User ID:</b> <code>{user_id}</code>\n"
-            f"🔑 <b>Generated Code:</b> <code>{affiliate_code}</code>\n"
-            f"📅 <b>Applied:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-            "Review and approve/reject this application:"
-        )
-        
-        kb = types.InlineKeyboardMarkup(row_width=2)
-        kb.row(
-            types.InlineKeyboardButton("✅ Approve Affiliate", callback_data=f"admin_approve_affiliate:{user_id}"),
-            types.InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_affiliate:{user_id}")
-        )
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
-            except Exception as e:
-                logger.error(f"Could not notify admin {admin_id}: {e}")
-                
-    except Exception as e:
-        logger.error(f"Error notifying admin: {e}")
-
-def show_affiliate_dashboard(uid: int, message_id: int = None):
-    """Show affiliate dashboard with stats and earnings"""
-    try:
-        user = user_db.fetch_user(uid)
-        if not user or not user.get('is_affiliate'):
-            if message_id:
-                bot.edit_message_text(
-                    "You need to be an approved affiliate to access the dashboard.",
-                    uid,
-                    message_id
-                )
-            else:
-                bot.send_message(uid, "You need to be an approved affiliate to access the dashboard.")
-            return
-        
-        affiliate_code = user.get('affiliate_code', 'N/A')
-        bot_username = bot.get_me().username
-        referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
-        
-        # Get affiliate stats
-        stats = user_db.get_affiliate_stats(uid)
-        
-        text = (
-            f"📊 <b>Affiliate Dashboard</b>\n\n"
-            f"🔑 <b>Your Affiliate Code:</b> <code>{affiliate_code}</code>\n\n"
-            f"🔗 <b>Your Referral Link:</b>\n"
-            f"<code>{referral_link}</code>\n\n"
-            f"📈 <b>Performance Stats:</b>\n"
-            f"• Total Referrals: {stats.get('total_referrals', 0)}\n"
-            f"• Active Referrals: {stats.get('active_referrals', 0)}\n"
-            f"• Total Earnings: <b>₦{stats.get('total_earnings', 0):,.2f}</b>\n"
-            f"• Pending Payout: <b>₦{stats.get('pending_payout', 0):,.2f}</b>\n"
-            f"• Total Paid Out: <b>₦{stats.get('total_paid', 0):,.2f}</b>\n\n"
-            f"💰 <b>Available for Payout:</b> <b>₦{stats.get('available_balance', 0):,.2f}</b>\n"
-            f"🎯 <b>Minimum Payout:</b> ₦{MINIMUM_PAYOUT:,.2f}\n\n"
-            f"<b>Commission Structure:</b>\n"
-            f"• Academy: 30%\n"
-            f"• VIP Monthly: 15%\n"
-            f"• VIP 3-6 Months: 20%\n"
-            f"• VIP Yearly: 20%\n\n"
-            f"<b>Recent Commissions:</b>\n"
-        )
-        
-        # Add recent commissions
-        recent_commissions = user_db.get_recent_commissions(uid, limit=5)
-        if recent_commissions:
-            for i, commission in enumerate(recent_commissions[:5], 1):
-                text += f"{i}. ₦{commission['amount']:,.2f} - {commission['plan_type']}\n"
-        else:
-            text += "No commissions yet. Start sharing your link!\n"
-        
-        kb = types.InlineKeyboardMarkup(row_width=2)
-        kb.row(
-            types.InlineKeyboardButton("📋 Copy Referral Link", callback_data="affiliate_copy_link"),
-            types.InlineKeyboardButton("💰 Request Payout", callback_data="affiliate_request_payout")
-        )
-        kb.row(
-            types.InlineKeyboardButton("📊 View All Referrals", callback_data="affiliate_view_referrals"),
-            types.InlineKeyboardButton("💸 Commission History", callback_data="affiliate_commission_history")
-        )
-        kb.row(
-            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
-            types.InlineKeyboardButton("🔄 Refresh", callback_data="affiliate_refresh")
-        )
-        
-        if message_id:
-            bot.edit_message_text(text, uid, message_id, parse_mode='HTML', reply_markup=kb)
-        else:
-            bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
-            
-    except Exception as e:
-        logger.error(f"Error showing affiliate dashboard: {e}")
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("affiliate_"))
-def handle_affiliate_callbacks(call: types.CallbackQuery):
-    """Handle all affiliate-related callbacks"""
-    try:
-        uid = call.from_user.id
-        action = call.data.replace("affiliate_", "")
-        
-        if action == "copy_link":
-            # Copy referral link to clipboard (simulated)
-            user = user_db.fetch_user(uid)
-            if user and user.get('is_affiliate'):
-                affiliate_code = user.get('affiliate_code')
-                bot_username = bot.get_me().username
-                referral_link = f"https://t.me/{bot_username}?start=ref_{affiliate_code}"
-                
-                bot.answer_callback_query(
-                    call.id,
-                    f"✅ Link copied to clipboard!\n\nShare: {referral_link}",
-                    show_alert=True
-                )
-        
-        elif action == "request_payout":
-            # Request payout
-            handle_payout_request(uid, call.message.message_id)
-        
-        elif action == "view_referrals":
-            # View all referrals
-            show_all_referrals(uid, call.message.message_id)
-        
-        elif action == "commission_history":
-            # View commission history
-            show_commission_history(uid, call.message.message_id)
-        
-        elif action == "refresh":
-            # Refresh dashboard
-            show_affiliate_dashboard(uid, call.message.message_id)
-        
-        elif action == "dashboard":
-            # Show dashboard
-            show_affiliate_dashboard(uid, call.message.message_id)
-        
-        elif action == "view_commission":
-            # Show commission structure
-            show_commission_structure(uid, call.message.message_id)
-            
-    except Exception as e:
-        logger.error(f"Error in affiliate callback: {e}")
-        bot.answer_callback_query(call.id, "Error processing request")
+# ====================
+# FIXED: SHOW ALL REFERRALS FUNCTION
+# ====================
 
 def show_all_referrals(uid: int, message_id: int = None):
     """Show all referrals for an affiliate"""
@@ -5347,6 +5347,10 @@ def show_all_referrals(uid: int, message_id: int = None):
             
     except Exception as e:
         logger.error(f"Error showing referrals: {e}")
+
+# ====================
+# FIXED: SHOW COMMISSION HISTORY FUNCTION
+# ====================
 
 def show_commission_history(uid: int, message_id: int = None):
     """Show commission history for an affiliate"""
@@ -5384,7 +5388,36 @@ def show_commission_history(uid: int, message_id: int = None):
         logger.error(f"Error showing commission history: {e}")
 
 # ====================
-# PROGRAM SELECTION HANDLER
+# FIXED: QUICK HELP FUNCTION
+# ====================
+
+@bot.message_handler(func=lambda m: m.text == "❓ Help")
+def quick_help(message: types.Message):
+    """Quick help shortcut"""
+    uid = message.from_user.id
+    quick_help_text = (
+        "❓ <b>Quick Help</b>\n\n"
+        "<b>Need assistance?</b>\n"
+        "• Tap 📱 Main Menu for all options\n"
+        "• Use 🆘 Help in menu for detailed help\n"
+        "• Contact admin: @blockchainpluspro\n\n"
+        "<b>Common Questions:</b>\n"
+        "• Payment issues? Check Payment Help\n"
+        "• Can't join groups? Contact admin\n"
+        "• Want to change program? Use Switch\n\n"
+        "<b>Need more help?</b> Tap below:"
+    )
+    
+    kb = types.InlineKeyboardMarkup()
+    kb.row(
+        types.InlineKeyboardButton("📱 Open Main Menu", callback_data="mainmenu_back"),
+        types.InlineKeyboardButton("🆘 Detailed Help", callback_data="mainmenu_help")
+    )
+    
+    bot.send_message(uid, quick_help_text, parse_mode='HTML', reply_markup=kb)
+
+# ====================
+# FIXED: PROGRAM SELECTION HANDLER
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("program:"))
