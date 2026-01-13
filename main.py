@@ -1,5 +1,5 @@
 # main.py - Complete Working Bot with All Fixes Applied + Affiliate System + Full Payout Flow
-# UPDATED VERSION WITH ALL FIXES APPLIED
+# UPDATED VERSION: Removed extend buttons, fixed registration dates, improved user display, added exchange links
 
 import time
 from typing import Optional, Dict, List, Tuple
@@ -320,6 +320,18 @@ TUTORIAL_CATEGORIES = {
     'education': '📚 Trading Education',
     'security': '🔒 Security Guides'
 }
+
+# Recommended Exchange Links
+RECOMMENDED_EXCHANGES = [
+    {"name": "🚀 Bybit Exchange", "url": "https://www.bybit.com/invite?ref=L7ZG7", "description": "One of the best futures trading platforms"},
+    {"name": "💼 Binance Exchange", "url": "https://www.binance.com", "description": "World's largest cryptocurrency exchange"},
+    {"name": "🔄 Ourbit Exchange", "url": "https://www.ourbit.com/register?inviteCode=QZM5RY", "description": "Great for futures trading with good liquidity"},
+    {"name": "⚡ Bitunix Exchange", "url": "https://www.bitunix.com/activity/normal/Blockchainplus1028?vipcode=hGrB", "description": "Fast-growing exchange with great features"},
+    {"name": "🎯 Gate.io Exchange", "url": "https://www.gate.io/ref/VLBCUGSOAW?ref_type=102", "description": "Long-established exchange with wide token selection"},
+    {"name": "🔵 Kucoin Exchange", "url": "https://www.kucoin.com/r/rf/QBSGS7TG", "description": "Popular for altcoin trading"},
+    {"name": "🟢 MexC Exchange", "url": "https://www.mexc.com/register?inviteCode=2YZAE", "description": "Excellent for new token listings"},
+    {"name": "🌙 MoonShot Exchange", "url": "https://moonshot.com?ref=IcfBXoMVkh", "description": "User-friendly platform for beginners"},
+]
 
 # ====================
 # HELPER FUNCTIONS
@@ -1296,7 +1308,7 @@ def export_affiliates_to_csv(admin_id: int):
         
         # Create CSV in memory
         output = io.StringIO()
-        fieldnames = ['ID', 'Name', 'Username', 'Affiliate Code', 'Earnings', 'Paid', 'Pending', 'Status', 'Registered Date']
+        fieldnames = ['ID', 'Name', 'Username', 'Affiliate Code', 'Earnings', 'Paid', 'Pending', 'Status']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         
@@ -1309,8 +1321,7 @@ def export_affiliates_to_csv(admin_id: int):
                 'Earnings': affiliate.get('affiliate_earnings', 0),
                 'Paid': affiliate.get('affiliate_paid', 0),
                 'Pending': affiliate.get('affiliate_pending', 0),
-                'Status': 'Approved' if affiliate.get('is_affiliate') else 'Pending' if affiliate.get('affiliate_status') == 'pending' else 'Rejected',
-                'Registered Date': affiliate.get('registered_date', 'N/A')
+                'Status': 'Approved' if affiliate.get('is_affiliate') else 'Pending' if affiliate.get('affiliate_status') == 'pending' else 'Rejected'
             })
         
         # Convert to bytes
@@ -1857,7 +1868,7 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
                 f"📅 <i>Page {page + 1} of {total_pages}</i>\n\n"
             )
             
-            # Add user details with username and registration date
+            # Add user details with username
             for i, (user_id_str, user_data) in enumerate(current_page_users, start=start_idx + 1):
                 user_id = int(user_id_str)
                 name = user_data.get('name', 'Unknown')
@@ -2064,12 +2075,10 @@ def show_all_affiliates(admin_id: int, message_id: int = None):
                 earnings = affiliate.get('affiliate_earnings', 0)
                 paid = affiliate.get('affiliate_paid', 0)
                 pending = affiliate.get('affiliate_pending', 0)
-                registered = affiliate.get('registered_date', 'Unknown')
                 
                 text += f"<b>{i}. {name}</b>\n"
                 text += f"   🆔 ID: {affiliate['tg_id']}\n"
                 text += f"   📱 {username}\n"
-                text += f"   📅 Registered: {registered}\n"
                 text += f"   💰 Earnings: ₦{earnings:,.2f} | Paid: ₦{paid:,.2f} | Pending: ₦{pending:,.2f}\n"
                 text += f"   🔑 Code: {affiliate.get('affiliate_code', 'N/A')}\n\n"
                 
@@ -2273,6 +2282,9 @@ def show_main_menu_from_callback(uid: int, message_id: int):
         else:
             menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become an Affiliate: Earn commissions\n"
         
+        # Add recommended exchanges option
+        menu_text += f"\n🔹 <b>Trading Platforms</b>\n• 🚀 Recommended Exchanges: Best platforms to trade\n"
+        
         # Create inline keyboard for main menu
         kb = types.InlineKeyboardMarkup(row_width=2)
         
@@ -2291,7 +2303,7 @@ def show_main_menu_from_callback(uid: int, message_id: int):
         )
         kb.row(
             types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
-            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
+            types.InlineKeyboardButton("🚀 Exchanges", callback_data="mainmenu_exchanges")
         )
         
         # FIXED: Add affiliate button based on user status
@@ -2315,12 +2327,12 @@ def show_main_menu_from_callback(uid: int, message_id: int):
         bot.send_message(uid, "Error loading menu. Please try again.")
 
 # ====================
-# FIXED: MAIN MENU SHOW FUNCTION
+# FIXED: MAIN MENU SHOW FUNCTION WITH EXCHANGES BUTTON
 # ====================
 
 @bot.message_handler(func=lambda m: m.text == "📱 Main Menu")
 def show_main_menu(message: types.Message):
-    """Show main menu dashboard - FIXED AFFILIATE BUTTON LOGIC"""
+    """Show main menu dashboard - FIXED AFFILIATE BUTTON LOGIC with Exchanges"""
     try:
         uid = message.from_user.id
         user = user_db.fetch_user(uid)
@@ -2353,6 +2365,9 @@ def show_main_menu(message: types.Message):
         else:
             menu_text += f"\n🔹 <b>Affiliate Program</b>\n• 🤝 Become an Affiliate: Earn commissions\n"
         
+        # Add recommended exchanges option
+        menu_text += f"\n🔹 <b>Trading Platforms</b>\n• 🚀 Recommended Exchanges: Best platforms to trade\n"
+        
         # Create inline keyboard for main menu
         kb = types.InlineKeyboardMarkup(row_width=2)
         
@@ -2371,7 +2386,7 @@ def show_main_menu(message: types.Message):
         )
         kb.row(
             types.InlineKeyboardButton("🔄 Switch Program", callback_data="mainmenu_switch"),
-            types.InlineKeyboardButton("📋 Quick Actions", callback_data="mainmenu_quick")
+            types.InlineKeyboardButton("🚀 Exchanges", callback_data="mainmenu_exchanges")
         )
         
         # FIXED: Add affiliate button based on user status
@@ -2387,6 +2402,57 @@ def show_main_menu(message: types.Message):
     except Exception as e:
         logger.error(f"Error showing main menu: {e}")
         bot.send_message(message.chat.id, "Error loading menu. Please try again.")
+
+# ====================
+# NEW: RECOMMENDED EXCHANGES FUNCTION
+# ====================
+
+def show_recommended_exchanges(uid: int, message_id: int = None):
+    """Show recommended exchanges with affiliate links"""
+    try:
+        text = (
+            "🚀 <b>Recommended Trading Exchanges & Platforms</b>\n\n"
+            "Here are our recommended platforms for trading cryptocurrencies. "
+            "These are platforms we've tested and trust for their security, "
+            "liquidity, and user experience.\n\n"
+            "<b>🔒 Security Note:</b> Always enable 2FA and never share your API keys!\n\n"
+            "Select an exchange to visit:"
+        )
+        
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        
+        # Add exchange buttons in rows of 2
+        row = []
+        for exchange in RECOMMENDED_EXCHANGES:
+            row.append(types.InlineKeyboardButton(
+                exchange["name"],
+                url=exchange["url"]
+            ))
+            if len(row) == 2:
+                kb.row(*row)
+                row = []
+        
+        # Add any remaining buttons
+        if row:
+            kb.row(*row)
+        
+        # Add navigation buttons
+        kb.row(
+            types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
+            types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
+        )
+        
+        if message_id:
+            bot.edit_message_text(text, uid, message_id, parse_mode='HTML', reply_markup=kb)
+        else:
+            bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
+            
+    except Exception as e:
+        logger.error(f"Error showing recommended exchanges: {e}")
+        if message_id:
+            bot.edit_message_text("Error loading exchanges. Please try again.", uid, message_id)
+        else:
+            bot.send_message(uid, "Error loading exchanges. Please try again.")
 
 # ====================
 # FIXED: AFFILIATE BUTTON HANDLER FOR REPLY KEYBOARD
@@ -3040,11 +3106,11 @@ def export_subscribed_users_to_csv(admin_id: int):
         bot.send_message(admin_id, f"❌ Error exporting data: {e}")
 
 # ====================
-# FIXED: USER DETAIL SEARCH WITH CLEAR STEP HANDLERS AND CANCEL BUTTON
+# FIXED: USER DETAIL SEARCH WITH CLEAR STEP HANDLERS AND CANCEL OPTION
 # ====================
 
 def show_user_detail_search(admin_id: int, message_id: int = None):
-    """Show user detail search interface - FIXED VERSION with cancel button"""
+    """Show user detail search interface - FIXED VERSION with cancel option"""
     try:
         # Clear any existing step handlers first
         try:
@@ -3056,58 +3122,59 @@ def show_user_detail_search(admin_id: int, message_id: int = None):
             "🔍 <b>User Detail Search</b>\n\n"
             "Enter the User ID to view detailed information:\n\n"
             "Format: <code>123456789</code>\n\n"
-            "Send the User ID now or use the cancel button below:"
+            "Send the User ID now:\n\n"
+            "<i>Click 'Cancel' below to go back without entering ID</i>"
         )
         
         kb = types.InlineKeyboardMarkup()
         kb.row(
             types.InlineKeyboardButton("❌ Cancel", callback_data="admin_user_mgmt_back"),
-            types.InlineKeyboardButton("📋 Back to Management", callback_data="admin_user_mgmt_back")
+            types.InlineKeyboardButton("📋 All Users", callback_data="admin_view_all_users")
         )
         
         if message_id:
             bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML', reply_markup=kb)
         else:
-            bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
+            msg = bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
+            message_id = msg.message_id
         
         # Register next step handler with timeout
-        bot.register_next_step_handler_by_chat_id(admin_id, process_user_detail_search)
+        bot.register_next_step_handler_by_chat_id(admin_id, process_user_detail_search, message_id)
         
     except Exception as e:
         logger.error(f"Error showing user detail search: {e}")
         bot.send_message(admin_id, f"Error: {e}")
 
-def process_user_detail_search(message: types.Message):
-    """Process user detail search - FIXED VERSION with proper step handler clearing"""
+def process_user_detail_search(message: types.Message, search_message_id: int):
+    """Process user detail search - FIXED VERSION with cancel handling"""
     try:
-        if message.from_user.id not in ADMIN_IDS:
+        admin_id = message.from_user.id
+        if admin_id not in ADMIN_IDS:
             return
         
         user_id_str = message.text.strip()
         
+        # Check if user clicked cancel by sending command
+        if user_id_str.lower() in ['cancel', '/cancel', 'back']:
+            # Clear the step handler
+            try:
+                bot.clear_step_handler(message)
+            except:
+                pass
+            
+            # Return to user management
+            show_user_management_dashboard(admin_id)
+            return
+        
         # Clear the step handler immediately
         try:
             bot.clear_step_handler(message)
-            bot.clear_step_handler_by_chat_id(message.chat.id)
         except:
             pass
         
-        # Check if message is a command (starts with /) or admin button
+        # Check if message is a command (starts with /)
         if user_id_str.startswith('/'):
             # This is a command, not a user ID, so ignore it
-            return
-        
-        # Check if it's an admin button
-        if user_id_str in ["📊 Overview", "📋 User Management", "🤝 Affiliate Management", "💰 Payout Requests"]:
-            # Admin clicked a button, handle it appropriately
-            if user_id_str == "📊 Overview":
-                show_admin_dashboard(message.chat.id)
-            elif user_id_str == "📋 User Management":
-                show_user_management_dashboard(message.chat.id)
-            elif user_id_str == "🤝 Affiliate Management":
-                show_affiliate_management(message.chat.id)
-            elif user_id_str == "💰 Payout Requests":
-                show_all_payout_requests(message.chat.id)
             return
         
         try:
@@ -3126,7 +3193,7 @@ def process_user_detail_search(message: types.Message):
                 bot.delete_message(message.chat.id, message.message_id)
             except:
                 pass
-            show_user_detail_search(message.chat.id)
+            show_user_detail_search(admin_id, search_message_id)
             return
         
         # Fetch user data
@@ -3140,11 +3207,18 @@ def process_user_detail_search(message: types.Message):
                 bot.delete_message(message.chat.id, message.message_id)
             except:
                 pass
-            show_user_detail_search(message.chat.id)
+            show_user_detail_search(admin_id, search_message_id)
             return
         
+        # Delete the search message and user's input
+        try:
+            bot.delete_message(admin_id, search_message_id)
+            bot.delete_message(admin_id, message.message_id)
+        except:
+            pass
+        
         # Show user details
-        show_user_details(message.chat.id, user_id)
+        show_user_details(admin_id, user_id)
         
         # Clear the step handler
         try:
@@ -3157,7 +3231,7 @@ def process_user_detail_search(message: types.Message):
         bot.send_message(message.chat.id, f"❌ Error: {e}")
 
 def show_user_details(admin_id: int, user_id: int):
-    """Show detailed user information - FIXED with username display and REMOVED extend buttons"""
+    """Show detailed user information - FIXED with username display and NO extend buttons"""
     try:
         user = user_db.fetch_user(user_id)
         
@@ -3215,10 +3289,16 @@ def show_user_details(admin_id: int, user_id: int):
         
         kb = types.InlineKeyboardMarkup(row_width=2)
         
-        # Add action buttons (REMOVED extend subscription buttons)
+        # REMOVED: All extend subscription buttons
+        
+        # Add action buttons
         kb.row(
             types.InlineKeyboardButton("✉️ Message User", url=f"tg://user?id={user_id}"),
             types.InlineKeyboardButton("📋 Back to Search", callback_data="admin_view_user_detail_menu")
+        )
+        kb.row(
+            types.InlineKeyboardButton("👥 All Users", callback_data="admin_view_all_users"),
+            types.InlineKeyboardButton("📱 Admin Dashboard", callback_data="admin_back")
         )
         
         bot.send_message(admin_id, text, parse_mode='HTML', reply_markup=kb)
@@ -3678,8 +3758,17 @@ def handle_start(message: types.Message):
         
         # Create user in database if not exists
         if not user_db.fetch_user(uid):
+            # Get current date for registration
             current_date = datetime.now().strftime('%Y-%m-%d')
-            user_db.insert_user(uid, f"{user.first_name or ''}", user.username or "", 'crypto', current_date)
+            user_db.insert_user(uid, f"{user.first_name or ''}", user.username or "", 'crypto')
+            
+            # Update registration date
+            user_data = user_db.fetch_user(uid)
+            if user_data:
+                user_data['registered_date'] = current_date
+                user_db.users[str(uid)] = user_data
+                user_db.save_database()
+            
             logger.info(f"User {uid} created in database with registration date: {current_date}")
             
         # Store referral if exists
@@ -3695,7 +3784,7 @@ def handle_start(message: types.Message):
             pass
 
 # ====================
-# MAIN MENU CALLBACK HANDLER
+# MAIN MENU CALLBACK HANDLER WITH EXCHANGES
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("mainmenu_"))
@@ -3726,8 +3815,9 @@ def handle_main_menu(call: types.CallbackQuery):
         elif action == "mainmenu_switch":
             show_switch_program(uid, call.message.message_id)
             
-        elif action == "mainmenu_quick":
-            show_quick_actions(uid, call.message.message_id)
+        elif action == "mainmenu_exchanges":
+            # NEW: Show recommended exchanges
+            show_recommended_exchanges(uid, call.message.message_id)
             
         elif action == "mainmenu_back":
             # Go back to main menu
@@ -3771,7 +3861,8 @@ def show_welcome(uid: int, message_id: int = None):
             "• Check your subscription status\n"
             "• Make payment to subscribe\n"
             "• Access tutorial videos\n"
-            "• Get help and support"
+            "• Get help and support\n"
+            "• View recommended exchanges"
         )
     else:
         text = (
@@ -3793,13 +3884,18 @@ def show_welcome(uid: int, message_id: int = None):
             "• Check your subscription status\n"
             "• Make payment to subscribe\n"
             "• Access tutorial videos\n"
-            "• Get help and support"
+            "• Get help and support\n"
+            "• View recommended exchanges"
         )
     
     kb = types.InlineKeyboardMarkup()
     kb.row(
         types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"),
         types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment")
+    )
+    kb.row(
+        types.InlineKeyboardButton("🚀 Exchanges", callback_data="mainmenu_exchanges"),
+        types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials")
     )
     
     if message_id:
@@ -4258,7 +4354,7 @@ def show_tutorial_search(uid: int, message_id: int):
         )
 
 # ====================
-# HELP SECTION (UPDATED WITH EXCHANGE LINKS)
+# HELP SECTION (KEPT FOR COMPLETENESS)
 # ====================
 
 def show_help_menu(uid: int, message_id: int = None):
@@ -4515,7 +4611,7 @@ def handle_help_callback(call: types.CallbackQuery):
                 ]
             },
             "help_official": {
-                "title": "🔗 <b>Official Channels & Recommended Exchanges</b>",
+                "title": "🔗 <b>Official Channels & Social Media</b>",
                 "content": (
                     "<b>Stay Connected with Blockchain Plus Hub:</b>\n\n"
                     
@@ -4531,27 +4627,13 @@ def handle_help_callback(call: types.CallbackQuery):
                     "🐦 <b>Twitter/X:</b>\n"
                     "Follow for crypto news, trading insights, and community updates\n\n"
                     
-                    "<b>💎 Recommended Exchanges & Platforms:</b>\n\n"
-                    "• 🚀 <b>Bybit Exchange:</b> Advanced trading with futures and options\n"
-                    "• 💼 <b>Binance Exchange:</b> World's largest crypto exchange\n"
-                    "• 🔄 <b>Ourbit Exchange:</b> Great for futures trading with good UI\n"
-                    "• ⚡ <b>Bitunix Exchange:</b> Excellent for derivatives trading\n"
-                    "• 🎯 <b>Gate.io Exchange:</b> Wide variety of altcoins\n"
-                    "• 🔵 <b>Kucoin Exchange:</b> Good for discovering new projects\n"
-                    "• 🟢 <b>MexC Exchange:</b> Great for spot trading and new listings\n"
-                    "• 🌙 <b>MoonShot Exchange:</b> User-friendly platform for beginners\n\n"
-                    
                     "📍 <b>Always verify you're following our official channels to avoid scams!</b>"
                 ),
                 "buttons": [
-                    {"text": "🚀 Bybit Exchange", "url": "https://www.bybit.com/invite?ref=L7ZG7"},
-                    {"text": "💼 Binance Exchange", "url": "https://www.binance.com"},
-                    {"text": "🔄 Ourbit Exchange", "url": "https://www.ourbit.com/register?inviteCode=QZM5RY"},
-                    {"text": "⚡ Bitunix Exchange", "url": "https://www.bitunix.com/activity/normal/Blockchainplus1028?vipcode=hGrB"},
-                    {"text": "🎯 Gate.io Exchange", "url": "https://www.gate.io/ref/VLBCUGSOAW?ref_type=102"},
-                    {"text": "🔵 Kucoin Exchange", "url": "https://www.kucoin.com/r/rf/QBSGS7TG"},
-                    {"text": "🟢 MexC Exchange", "url": "https://www.mexc.com/register?inviteCode=2YZAE"},
-                    {"text": "🌙 MoonShot Exchange", "url": "https://moonshot.com?ref=IcfBXoMVkh"},
+                    {"text": "📢 Telegram Channel", "url": "https://t.me/blockchainplushub"},
+                    {"text": "🎬 YouTube Channel", "url": "https://www.youtube.com/@Blockchainplushub"},
+                    {"text": "🎵 TikTok", "url": "https://www.tiktok.com/@blockchainplus?_r=1&_t=ZS-92vZFPIWKV2"},
+                    {"text": "🐦 Twitter/X", "url": "https://x.com/bcplushub?t=aiphzEilvUyoptHO64MyEA&s=09"},
                     {"text": "📞 Contact Admin", "url": "https://t.me/blockchainpluspro"},
                     {"text": "📱 Back to Menu", "callback_data": "mainmenu_back"}
                 ]
@@ -4654,40 +4736,6 @@ def show_switch_program(uid: int, message_id: int = None):
     else:
         bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
 
-def show_quick_actions(uid: int, message_id: int = None):
-    """Show quick actions"""
-    text = (
-        "📋 <b>Quick Actions</b>\n\n"
-        "Frequently used actions:\n\n"
-        "⚡ <b>Check Status:</b> View subscription details\n"
-        "⚡ <b>Make Payment:</b> Subscribe or renew\n"
-        "⚡ <b>Tutorials:</b> Watch learning videos\n"
-        "⚡ <b>Help:</b> Get assistance\n"
-        "⚡ <b>Contact:</b> Reach admin\n"
-        "⚡ <b>Switch:</b> Change program\n\n"
-        "Select an action below:"
-    )
-    
-    kb = types.InlineKeyboardMarkup(row_width=2)
-    kb.row(
-        types.InlineKeyboardButton("⏳ Check Status", callback_data="mainmenu_status"),
-        types.InlineKeyboardButton("💳 Make Payment", callback_data="mainmenu_payment")
-    )
-    kb.row(
-        types.InlineKeyboardButton("🎥 Tutorials", callback_data="mainmenu_tutorials"),
-        types.InlineKeyboardButton("🆘 Help", callback_data="mainmenu_help")
-    )
-    kb.row(
-        types.InlineKeyboardButton("📌 Contact", callback_data="mainmenu_contact"),
-        types.InlineKeyboardButton("🔄 Switch", callback_data="mainmenu_switch")
-    )
-    kb.add(types.InlineKeyboardButton("📱 Back to Menu", callback_data="mainmenu_back"))
-    
-    if message_id:
-        bot.edit_message_text(text, uid, message_id, parse_mode='HTML', reply_markup=kb)
-    else:
-        bot.send_message(uid, text, parse_mode='HTML', reply_markup=kb)
-
 @bot.message_handler(func=lambda m: m.text == "🔄 Switch Program")
 def menu_switch_program(message: types.Message):
     show_switch_program(message.chat.id)
@@ -4762,6 +4810,16 @@ def on_vip_duration_selected(call: types.CallbackQuery):
         program = parts[1]
         duration = parts[2]
         uid = call.from_user.id
+        
+        # Map duration to days
+        duration_map = {
+            'monthly': 30,
+            '3_months': 90,
+            '6_months': 180,
+            'yearly': 365
+        }
+        
+        days = duration_map.get(duration, 90)
         
         # Duration display names
         dur_names = {
@@ -4863,8 +4921,7 @@ def on_uploadpop_button(call: types.CallbackQuery):
         bot.send_message(uid, "📤 Please send your proof of payment now (photo or file).\n\nMake sure it's clear and includes transaction details.")
         
         if not user_db.fetch_user(uid):
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            user_db.insert_user(uid, f"{call.from_user.first_name or ''}", call.from_user.username or "", program, current_date)
+            user_db.insert_user(uid, f"{call.from_user.first_name or ''}", call.from_user.username or "", program)
         
         user_db.set_pending_pop(uid, file_id="PENDING", program=program, plan_choice=plan, vip_duration=vip_dur)
         
@@ -5465,8 +5522,16 @@ def handle_program_selection(call: types.CallbackQuery):
         else:
             # Create user if not exists
             current_date = datetime.now().strftime('%Y-%m-%d')
-            user_db.insert_user(uid, call.from_user.first_name or "", call.from_user.username or "", program, current_date)
-            logger.info(f"Created user {uid} with program {program} and registration date {current_date}")
+            user_db.insert_user(uid, call.from_user.first_name or "", call.from_user.username or "", program)
+            
+            # Update registration date
+            user_data = user_db.fetch_user(uid)
+            if user_data:
+                user_data['registered_date'] = current_date
+                user_db.users[str(uid)] = user_data
+                user_db.save_database()
+            
+            logger.info(f"Created user {uid} with program {program} and registration date: {current_date}")
         
         # Send compact menu
         send_compact_menu(uid, program)
