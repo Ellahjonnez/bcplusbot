@@ -1662,6 +1662,46 @@ def show_payouts_weekly(admin_id: int, message_id: int = None):
         logger.error(f"Error showing weekly payouts: {e}")
 
 # ====================
+# FIXED: HAS ACTIVE SUBSCRIPTION FUNCTION
+# ====================
+
+def has_active_subscription(user_id: int) -> bool:
+    """Check if user has any active subscription (FIXED VERSION)"""
+    try:
+        user = user_db.fetch_user(user_id)
+        if not user:
+            return False
+        
+        # Check both programs
+        for program in ['crypto', 'forex']:
+            # Check Academy subscription
+            academy_exp = user.get(f'{program}_academy_expiry_date')
+            if academy_exp:
+                try:
+                    expiry_date = datetime.strptime(academy_exp, '%Y-%m-%d')
+                    if expiry_date.date() >= datetime.now().date():
+                        return True
+                except:
+                    # If date parsing fails, assume active if key exists
+                    return True
+            
+            # Check VIP subscription
+            vip_exp = user.get(f'{program}_vip_expiry_date')
+            if vip_exp:
+                try:
+                    expiry_date = datetime.strptime(vip_exp, '%Y-%m-%d')
+                    if expiry_date.date() >= datetime.now().date():
+                        return True
+                except:
+                    # If date parsing fails, assume active if key exists
+                    return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"Error checking active subscription for user {user_id}: {e}")
+        return False
+
+# ====================
 # ADMIN DASHBOARD - STREAMLINED
 # ====================
 
@@ -1819,8 +1859,8 @@ def show_all_users_list(admin_id: int, message_id: int = None, page: int = 0):
                 username = f"@{user_data.get('username')}" if user_data.get('username') else '-'
                 registered = user_data.get('registered_date', 'Unknown')
                 
-                # Check subscription status
-                has_active = "✅" if user_db.has_active_subscription(user_id) else "❌"
+                # Check subscription status using FIXED function
+                has_active = "✅" if has_active_subscription(user_id) else "❌"
                 
                 message_text += (
                     f"<b>{i}. ID: {user_id}</b>\n"
@@ -1885,16 +1925,16 @@ def handle_admin_view_subscribed_users(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error loading subscribed users.")
 
 def show_subscribed_users_list(admin_id: int, message_id: int = None, page: int = 0):
-    """Show users with active subscriptions - NEW FIXED FUNCTION"""
+    """Show users with active subscriptions - FIXED VERSION"""
     try:
         # Get all users
         all_users = user_db.get_all_users()
         
-        # Filter users with active subscriptions
+        # Filter users with active subscriptions using FIXED function
         subscribed_users = []
         for user_id_str, user_data in all_users.items():
             user_id = int(user_id_str)
-            if user_db.has_active_subscription(user_id):
+            if has_active_subscription(user_id):
                 subscribed_users.append((user_id, user_data))
         
         # Initialize variables
@@ -2312,6 +2352,8 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
             bot.answer_callback_query(call.id, "✅ Exporting users data...")
         
         elif action == "admin_view_user_detail_menu":
+            # Clear any existing step handlers first
+            bot.clear_step_handler_by_chat_id(call.from_user.id)
             show_user_detail_search(call.from_user.id, call.message.message_id)
         
         # NEW: Handle subscribed users pagination
@@ -2400,24 +2442,7 @@ def export_subscribed_users_to_csv(admin_id: int):
         for user_id_str, user_data in all_users.items():
             try:
                 user_id = int(user_id_str)
-                has_active_sub = False
-                
-                # Check for active subscriptions
-                for program in ['crypto', 'forex']:
-                    for plan in ['academy', 'vip']:
-                        expiry_key = f"{program}_{plan}_expiry_date"
-                        if expiry_key in user_data and user_data[expiry_key]:
-                            try:
-                                expiry_date = datetime.strptime(user_data[expiry_key], '%Y-%m-%d')
-                                if expiry_date.date() >= datetime.now().date():
-                                    has_active_sub = True
-                                    break
-                            except:
-                                pass
-                    if has_active_sub:
-                        break
-                
-                if has_active_sub:
+                if has_active_subscription(user_id):
                     # Get subscription details
                     crypto_academy = user_data.get('crypto_academy_expiry_date', '')
                     crypto_vip = user_data.get('crypto_vip_expiry_date', '')
@@ -2468,35 +2493,73 @@ def export_subscribed_users_to_csv(admin_id: int):
         logger.error(f"Error exporting subscribed users: {e}")
         bot.send_message(admin_id, f"❌ Error exporting data: {e}")
 
+# ====================
+# FIXED: USER DETAIL SEARCH WITH CLEAR STEP HANDLERS
+# ====================
+
 def show_user_detail_search(admin_id: int, message_id: int = None):
-    """Show user detail search interface"""
-    text = (
-        "🔍 <b>User Detail Search</b>\n\n"
-        "Enter the User ID to view detailed information:\n\n"
-        "Format: <code>123456789</code>\n\n"
-        "Send the User ID now:"
-    )
-    
-    if message_id:
-        bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML')
-    else:
-        bot.send_message(admin_id, text, parse_mode='HTML')
-    
-    # Register next step handler
-    bot.register_next_step_handler_by_chat_id(admin_id, process_user_detail_search)
+    """Show user detail search interface - FIXED VERSION"""
+    try:
+        # Clear any existing step handlers first
+        try:
+            bot.clear_step_handler_by_chat_id(admin_id)
+        except:
+            pass
+        
+        text = (
+            "🔍 <b>User Detail Search</b>\n\n"
+            "Enter the User ID to view detailed information:\n\n"
+            "Format: <code>123456789</code>\n\n"
+            "Send the User ID now:"
+        )
+        
+        if message_id:
+            bot.edit_message_text(text, admin_id, message_id, parse_mode='HTML')
+        else:
+            bot.send_message(admin_id, text, parse_mode='HTML')
+        
+        # Register next step handler with timeout
+        bot.register_next_step_handler_by_chat_id(admin_id, process_user_detail_search)
+        
+    except Exception as e:
+        logger.error(f"Error showing user detail search: {e}")
+        bot.send_message(admin_id, f"Error: {e}")
 
 def process_user_detail_search(message: types.Message):
-    """Process user detail search"""
+    """Process user detail search - FIXED VERSION"""
     try:
         if message.from_user.id not in ADMIN_IDS:
             return
         
         user_id_str = message.text.strip()
         
+        # Clear the step handler immediately
+        try:
+            bot.clear_step_handler(message)
+        except:
+            pass
+        
+        # Check if message is a command (starts with /)
+        if user_id_str.startswith('/'):
+            # This is a command, not a user ID, so ignore it
+            return
+        
         try:
             user_id = int(user_id_str)
         except ValueError:
-            bot.send_message(message.chat.id, "❌ Invalid User ID. Please enter a numeric ID.")
+            # Send error and restart the search
+            error_msg = bot.send_message(
+                message.chat.id,
+                "❌ Invalid User ID. Please enter a numeric ID.",
+                parse_mode='HTML'
+            )
+            # Wait a bit and then delete error message and restart search
+            time.sleep(2)
+            try:
+                bot.delete_message(message.chat.id, error_msg.message_id)
+                bot.delete_message(message.chat.id, message.message_id)
+            except:
+                pass
             show_user_detail_search(message.chat.id)
             return
         
@@ -2504,12 +2567,24 @@ def process_user_detail_search(message: types.Message):
         user = user_db.fetch_user(user_id)
         
         if not user:
-            bot.send_message(message.chat.id, f"❌ User with ID {user_id} not found.")
+            error_msg = bot.send_message(message.chat.id, f"❌ User with ID {user_id} not found.")
+            time.sleep(2)
+            try:
+                bot.delete_message(message.chat.id, error_msg.message_id)
+                bot.delete_message(message.chat.id, message.message_id)
+            except:
+                pass
             show_user_detail_search(message.chat.id)
             return
         
         # Show user details
         show_user_details(message.chat.id, user_id)
+        
+        # Clear the step handler
+        try:
+            bot.clear_step_handler_by_chat_id(message.chat.id)
+        except:
+            pass
         
     except Exception as e:
         logger.error(f"Error processing user detail search: {e}")
