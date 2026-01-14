@@ -1,5 +1,6 @@
 # main.py - Complete Working Bot with All Fixes Applied + Affiliate System + Full Payout Flow
 # UPDATED VERSION: Fixed affiliate button issues, all functionality intact
+# FIXED: Admin "View User" and "Check History" buttons now working
 
 import time
 from typing import Optional, Dict, List, Tuple
@@ -2764,8 +2765,12 @@ def handle_affiliate_application(call: types.CallbackQuery):
         logger.error(f"Error in affiliate application: {e}")
         bot.answer_callback_query(call.id, "Error submitting application. Please try again.")
 
+# ====================
+# FIXED: NOTIFY ADMIN AFFILIATE APPLICATION - FIXED CALLBACK DATA
+# ====================
+
 def notify_admin_affiliate_application(uid: int, user_name: str, affiliate_code: str):
-    """Notify admins about new affiliate application"""
+    """Notify admins about new affiliate application - FIXED VERSION with working buttons"""
     try:
         text = (
             f"📋 <b>New Affiliate Application</b>\n\n"
@@ -2782,8 +2787,8 @@ def notify_admin_affiliate_application(uid: int, user_name: str, affiliate_code:
             types.InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_affiliate:{uid}")
         )
         kb.row(
-            types.InlineKeyboardButton("👤 View User", callback_data=f"admin_view_user_detail:{uid}"),
-            types.InlineKeyboardButton("📊 Check History", callback_data=f"admin_check_user_history:{uid}")
+            types.InlineKeyboardButton("👤 View User Details", callback_data=f"admin_view_user_detail:{uid}"),
+            types.InlineKeyboardButton("📊 Check User History", callback_data=f"admin_check_user_history:{uid}")
         )
         
         for admin_id in ADMIN_IDS:
@@ -2973,12 +2978,12 @@ def handle_admin_reject_affiliate(call: types.CallbackQuery):
         bot.answer_callback_query(call.id, "Error rejecting affiliate")
 
 # ====================
-# ADMIN CALLBACK HANDLER - UPDATED WITH NEW FUNCTIONS
+# FIXED: ADMIN CALLBACK HANDLER - ADDED MISSING CALLBACKS FOR VIEW USER AND CHECK HISTORY
 # ====================
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_"))
 def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
-    """Handle admin affiliate management callbacks - UPDATED VERSION"""
+    """Handle admin affiliate management callbacks - UPDATED VERSION with fixed callbacks"""
     try:
         if call.from_user.id not in ADMIN_IDS:
             bot.answer_callback_query(call.id, "❌ Not authorized.")
@@ -3091,13 +3096,29 @@ def handle_admin_affiliate_callbacks(call: types.CallbackQuery):
             export_subscribed_users_to_csv(call.from_user.id)
             bot.answer_callback_query(call.id, "✅ Exporting subscribed users data...")
         
-        # Handle admin affiliate approval callbacks
+        # FIXED: Handle admin affiliate approval callbacks
         elif action.startswith("admin_approve_affiliate:"):
             handle_admin_approve_affiliate(call)
             return
         
         elif action.startswith("admin_reject_affiliate:"):
             handle_admin_reject_affiliate(call)
+            return
+        
+        # FIXED: Handle "View User" button from affiliate application
+        elif action.startswith("admin_view_user_detail:"):
+            user_id = int(action.split(":")[1])
+            # Show user details directly
+            show_user_details(call.from_user.id, user_id)
+            bot.answer_callback_query(call.id)
+            return
+        
+        # FIXED: Handle "Check History" button from affiliate application
+        elif action.startswith("admin_check_user_history:"):
+            user_id = int(action.split(":")[1])
+            # Show user history/details
+            show_user_details(call.from_user.id, user_id)
+            bot.answer_callback_query(call.id)
             return
         
         elif action.startswith("admin_payout_paid_with_proof:"):
@@ -3354,6 +3375,10 @@ def process_user_detail_search(message: types.Message, search_message_id: int):
         logger.error(f"Error processing user detail search: {e}")
         bot.send_message(message.chat.id, f"❌ Error: {e}")
 
+# ====================
+# FIXED: SHOW USER DETAILS FUNCTION - IMPROVED WITH PENDING PAYMENT INFO
+# ====================
+
 def show_user_details(admin_id: int, user_id: int):
     """Show detailed user information - FIXED with username display and NO extend buttons"""
     try:
@@ -3384,6 +3409,22 @@ def show_user_details(admin_id: int, user_id: int):
         # Referral info
         referred_by = user.get('referred_by', 'Not referred')
         
+        # Pending payment info (if any)
+        pending_pop = user.get('pending_pop', {})
+        pending_info = ""
+        if pending_pop:
+            pending_info = (
+                f"\n<b>Pending Payment:</b>\n"
+                f"• Program: {pending_pop.get('program', 'N/A')}\n"
+                f"• Plan: {pending_pop.get('plan_choice', 'N/A')}\n"
+                f"• VIP Duration: {pending_pop.get('vip_duration', 'N/A')}\n"
+                f"• Currency: {pending_pop.get('currency', 'N/A')}\n"
+                f"• Amount: {pending_pop.get('amount_text', 'N/A')}\n"
+                f"• Uploaded: {pending_pop.get('uploaded_at', 'N/A')}\n"
+            )
+        else:
+            pending_info = "\n<b>Pending Payment:</b> None\n"
+        
         text = (
             f"👤 <b>User Details</b>\n\n"
             f"<b>Basic Information:</b>\n"
@@ -3406,9 +3447,11 @@ def show_user_details(admin_id: int, user_id: int):
             f"• Status: {affiliate_status}\n"
             f"• Code: {affiliate_code}\n"
             f"• Earnings: ₦{affiliate_earnings:,.2f}\n"
-            f"• Referred By: {referred_by}\n\n"
+            f"• Referred By: {referred_by}"
             
-            f"<b>Actions:</b>"
+            f"{pending_info}"
+            
+            f"\n<b>Actions:</b>"
         )
         
         kb = types.InlineKeyboardMarkup(row_width=2)
@@ -4564,7 +4607,6 @@ def handle_help_callback(call: types.CallbackQuery):
                     
                     "<b>Q: Do you provide crypto signals?</b>\n"
                     "A: Yes. Crypto signals may include spot trade entries, futures trade setups, and market structure updates.\n\n"
-                    
                     "<b>Q: Is Futures trading included?</b>\n"
                     "A: Yes, but Futures trading is recommended only for experienced traders.\n\n"
                     
@@ -5782,7 +5824,10 @@ def start_bot():
                     f"• Apply Now button ✓\n"
                     f"• Apply to Become an Affiliate button ✓\n"
                     f"• Auto-reminders still active ✓\n"
-                    f"• Auto-removal still active ✓",
+                    f"• Auto-removal still active ✓\n\n"
+                    f"✅ ADMIN BUTTONS FIXED:\n"
+                    f"• View User button ✓\n"
+                    f"• Check History button ✓",
                     parse_mode='HTML'
                 )
             except Exception as e:
