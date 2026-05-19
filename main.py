@@ -56,7 +56,7 @@ ADMIN_IDS = config.admin_ids
 # Pricing for both programs
 PRICING = {
     'crypto': {
-        'academy': {'ngn': '₦35,000', 'usd': '$25', 'days': 365},
+        'academy': {'ngn': '₦35,000', 'usd': '$30', 'days': 365},
         'vip': {
             'monthly': {'ngn': '₦15,000', 'usd': '$12', 'days': 30},
             '3_months': {'ngn': '₦40,000', 'usd': '$30', 'days': 90},
@@ -65,7 +65,7 @@ PRICING = {
         }
     },
     'forex': {
-        'academy': {'ngn': '₦35,000', 'usd': '$25', 'days': 365},
+        'academy': {'ngn': '₦35,000', 'usd': '$30', 'days': 365},
         'vip': {
             'monthly': {'ngn': '₦15,000', 'usd': '$12', 'days': 30},
             '3_months': {'ngn': '₦40,000', 'usd': '$30', 'days': 90},
