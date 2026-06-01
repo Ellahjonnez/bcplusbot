@@ -1,9 +1,11 @@
-# database.py - MERGED VERSION WITH AUTO-SAVE FUNCTIONALITY
+# database.py - FULLY FIXED AFFILIATE SYSTEM WITH PROPER COMMISSION TRACKING
 import json
 import logging
 import os
 import shutil
 import time
+import random
+import string
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple, Any
 
@@ -115,7 +117,7 @@ class UserDatabase:
         }
 
     def verify_database_integrity(self):
-        """Verify database structure and fix any inconsistencies - NEW METHOD"""
+        """Verify database structure and fix any inconsistencies"""
         try:
             logger.info("Verifying database integrity...")
             
@@ -161,6 +163,12 @@ class UserDatabase:
                 # Ensure tg_id exists and is correct
                 if 'tg_id' not in user:
                     user['tg_id'] = int(user_id_str)
+            
+            # After loading, recalculate all affiliate balances from commissions
+            # to ensure data consistency (fixes old manual updates)
+            for user_id_str, user in self.db['users'].items():
+                if user.get('is_affiliate'):
+                    self.recalculate_affiliate_balance(int(user_id_str))
             
             # Update references
             self.users = self.db.get('users', {})
@@ -448,7 +456,7 @@ class UserDatabase:
             return False
 
     # ====================
-    # AFFILIATE SYSTEM METHODS
+    # AFFILIATE SYSTEM METHODS (FIXED)
     # ====================
 
     def set_affiliate_status(self, user_id: int, status: str, affiliate_code: str = None):
@@ -573,28 +581,23 @@ class UserDatabase:
             logger.error(f"Error adding referral: {e}")
             return False
 
+    # ========== FIXED: COMMISSION WITH STATUS ==========
     def add_commission(self, affiliate_id: int, user_id: int, amount: float, 
                       program: str, plan_type: str, vip_duration: Optional[str] = None):
-        """Add commission for an affiliate"""
+        """Add commission for an affiliate with 'pending' status"""
         try:
-            # Update affiliate's earnings
+            # Update affiliate's earnings (total earned ever)
             affiliate = self.fetch_user(affiliate_id)
             if not affiliate:
                 return False
             
-            current_earnings = affiliate.get('affiliate_earnings', 0.0)
-            current_pending = affiliate.get('affiliate_pending', 0.0)
-            current_available = affiliate.get('affiliate_available', 0.0)
+            # Update total earnings (never reset)
+            affiliate['affiliate_earnings'] = affiliate.get('affiliate_earnings', 0.0) + amount
             
-            affiliate['affiliate_earnings'] = current_earnings + amount
-            affiliate['affiliate_pending'] = current_pending + amount
-            affiliate['affiliate_available'] = current_available + amount
-            
-            # Add to affiliate's referral record
+            # Add to affiliate's referral record (for display)
             if 'referrals' not in affiliate:
                 affiliate['referrals'] = []
             
-            # Update or create referral record in affiliate's data
             referral_found = False
             for ref in affiliate['referrals']:
                 if ref.get('user_id') == user_id:
@@ -612,7 +615,7 @@ class UserDatabase:
                     'commission_earned': amount
                 })
             
-            # Add to affiliate's commission history
+            # Add to affiliate's commission history (for quick access)
             if 'commission_history' not in affiliate:
                 affiliate['commission_history'] = []
             
@@ -622,7 +625,8 @@ class UserDatabase:
                 'amount': amount,
                 'program': program,
                 'plan_type': plan_type,
-                'vip_duration': vip_duration
+                'vip_duration': vip_duration,
+                'status': 'pending'   # ← track status in history too
             })
             
             self.users[str(affiliate_id)] = affiliate
@@ -632,11 +636,11 @@ class UserDatabase:
             referral_id = f"{affiliate_id}_{user_id}"
             if referral_id in self.referrals:
                 self.referrals[referral_id]['has_subscribed'] = True
-                self.referrals[referral_id]['commission_earned'] = amount
+                self.referrals[referral_id]['commission_earned'] = self.referrals[referral_id].get('commission_earned', 0.0) + amount
                 self.referrals[referral_id]['subscription_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Add commission record
-            commission_id = f"COMM_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{affiliate_id}"
+            # Create commission record with status='pending'
+            commission_id = f"COMM_{datetime.now().strftime('%Y%m%d%H%M%S')}_{affiliate_id}_{user_id}_{random.randint(1000,9999)}"
             self.commissions[commission_id] = {
                 'id': commission_id,
                 'affiliate_id': affiliate_id,
@@ -645,40 +649,78 @@ class UserDatabase:
                 'program': program,
                 'plan_type': plan_type,
                 'vip_duration': vip_duration,
-                'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'pending'   # NEW: pending/paid
             }
             
             self.db['commissions'] = self.commissions
             self.db['referrals'] = self.referrals
+            
+            # Recalculate affiliate's balances from commissions (ensures integrity)
+            self.recalculate_affiliate_balance(affiliate_id)
+            
             self.mark_changed()
             
-            logger.info(f"Commission added: {amount} for affiliate {affiliate_id}")
+            logger.info(f"Commission added: {amount} for affiliate {affiliate_id}, status=pending")
             return True
         except Exception as e:
             logger.error(f"Error adding commission: {e}")
             return False
 
+    # ========== NEW: Recalculate balances from commission records ==========
+    def recalculate_affiliate_balance(self, affiliate_id: int):
+        """Sum all pending and paid commissions to update user's fields."""
+        user = self.fetch_user(affiliate_id)
+        if not user:
+            return False
+
+        pending_sum = 0.0
+        paid_sum = 0.0
+        total_earned = 0.0
+
+        for comm in self.commissions.values():
+            if str(comm['affiliate_id']) == str(affiliate_id):
+                total_earned += comm['amount']
+                if comm.get('status') == 'pending':
+                    pending_sum += comm['amount']
+                elif comm.get('status') == 'paid':
+                    paid_sum += comm['amount']
+
+        # Update user fields
+        user['affiliate_earnings'] = total_earned
+        user['affiliate_pending'] = pending_sum
+        user['affiliate_paid'] = paid_sum
+        user['affiliate_available'] = pending_sum   # available for payout = pending
+
+        self.users[str(affiliate_id)] = user
+        self.db['users'] = self.users
+        self.mark_changed()
+        return True
+
     def get_affiliate_stats(self, user_id: int) -> Dict:
-        """Get affiliate statistics"""
+        """Get affiliate statistics – ensures recalc first for accuracy"""
         try:
+            # Ensure balances are correct before returning stats
+            self.recalculate_affiliate_balance(user_id)
+            
             user = self.fetch_user(user_id)
             if not user or not user.get('is_affiliate'):
                 return {
                     'total_referrals': 0,
                     'active_referrals': 0,
                     'total_earnings': 0.0,
-                    'pending_payout': user.get('affiliate_pending', 0.0) if user else 0.0,
-                    'total_paid': user.get('affiliate_paid', 0.0) if user else 0.0,
-                    'available_balance': user.get('affiliate_available', 0.0) if user else 0.0
+                    'pending_payout': 0.0,
+                    'total_paid': 0.0,
+                    'available_balance': 0.0
                 }
             
             # Count referrals
             total_referrals = user.get('referral_count', 0)
             
-            # Count active referrals (those who have subscribed)
+            # Count active referrals (those who have at least one commission)
             active_referrals = 0
             for referral_id, referral in self.referrals.items():
-                if str(referral['affiliate_id']) == str(user_id) and referral['has_subscribed']:
+                if str(referral['affiliate_id']) == str(user_id) and referral.get('has_subscribed', False):
                     active_referrals += 1
             
             return {
@@ -694,9 +736,9 @@ class UserDatabase:
             return {}
 
     def get_recent_commissions(self, user_id: int, limit: int = 10) -> List[Dict]:
-        """Get recent commissions for an affiliate"""
+        """Get recent commissions for an affiliate (includes status)"""
         try:
-            # Check user's commission history first
+            # Use user's commission history first (already includes status)
             user = self.fetch_user(user_id)
             if user and 'commission_history' in user:
                 commissions = user['commission_history']
@@ -711,10 +753,10 @@ class UserDatabase:
                         'amount': commission['amount'],
                         'plan_type': commission['plan_type'],
                         'date': commission['date'],
-                        'user_id': commission['user_id']
+                        'user_id': commission['user_id'],
+                        'status': commission.get('status', 'pending')
                     })
             
-            # Sort by date descending
             commissions.sort(key=lambda x: x['date'], reverse=True)
             return commissions[:limit]
         except Exception as e:
@@ -722,31 +764,77 @@ class UserDatabase:
             return []
 
     def get_all_referrals(self, user_id: int) -> List[Dict]:
-        """Get all referrals for an affiliate"""
+        """Get all referrals for an affiliate with per-referral commission details (enhanced)"""
         try:
-            referrals = []
-            for referral_id, referral in self.referrals.items():
-                if str(referral['affiliate_id']) == str(user_id):
-                    referrals.append(referral)
+            # Build a dictionary keyed by referred user_id
+            referrals_dict = {}
             
-            # Sort by date descending
-            referrals.sort(key=lambda x: x['referral_date'], reverse=True)
-            return referrals
+            # First, gather from the referrals collection (basic info)
+            for ref_id, ref in self.referrals.items():
+                if str(ref['affiliate_id']) == str(user_id):
+                    uid = ref['user_id']
+                    referrals_dict[uid] = {
+                        'user_id': uid,
+                        'referral_date': ref.get('referral_date'),
+                        'has_subscribed': ref.get('has_subscribed', False),
+                        'total_commission': 0.0,
+                        'subscriptions': [],
+                        'status': 'pending'  # overall status
+                    }
+            
+            # Then, enrich with commission details
+            for comm in self.commissions.values():
+                if str(comm['affiliate_id']) == str(user_id):
+                    uid = comm['user_id']
+                    if uid not in referrals_dict:
+                        # This can happen if commission added before referral record
+                        referrals_dict[uid] = {
+                            'user_id': uid,
+                            'referral_date': comm['date'],
+                            'has_subscribed': True,
+                            'total_commission': 0.0,
+                            'subscriptions': [],
+                            'status': 'pending'
+                        }
+                    
+                    plan_name = f"{comm['program']} {comm['plan_type']}"
+                    if comm.get('vip_duration'):
+                        plan_name += f" ({comm['vip_duration']})"
+                    
+                    referrals_dict[uid]['subscriptions'].append({
+                        'plan': plan_name,
+                        'amount': comm['amount'],
+                        'date': comm['date'],
+                        'status': comm.get('status', 'pending')
+                    })
+                    referrals_dict[uid]['total_commission'] += comm['amount']
+                    
+                    # Determine overall status: if any commission pending -> pending, else paid
+                    if comm.get('status') == 'pending':
+                        referrals_dict[uid]['status'] = 'pending'
+                    else:
+                        # if all commissions are paid, set to 'paid'
+                        all_paid = all(s['status'] == 'paid' for s in referrals_dict[uid]['subscriptions'])
+                        if all_paid:
+                            referrals_dict[uid]['status'] = 'paid'
+            
+            # Convert to list and sort by referral date (most recent first)
+            result = list(referrals_dict.values())
+            result.sort(key=lambda x: x['referral_date'] or '', reverse=True)
+            return result
         except Exception as e:
             logger.error(f"Error getting referrals for {user_id}: {e}")
             return []
 
     def get_commission_history(self, user_id: int) -> List[Dict]:
-        """Get commission history for an affiliate"""
+        """Get commission history for an affiliate (includes status)"""
         try:
-            # Check user's commission history first
             user = self.fetch_user(user_id)
             if user and 'commission_history' in user:
                 history = user['commission_history']
                 history.sort(key=lambda x: x.get('date', ''), reverse=True)
                 return history
             
-            # Fallback to commission collection
             history = []
             for commission in self.commissions.values():
                 if str(commission['affiliate_id']) == str(user_id):
@@ -755,10 +843,10 @@ class UserDatabase:
                         'plan_type': commission['plan_type'],
                         'vip_duration': commission.get('vip_duration'),
                         'date': commission['date'],
-                        'user_id': commission['user_id']
+                        'user_id': commission['user_id'],
+                        'status': commission.get('status', 'pending')
                     })
             
-            # Sort by date descending
             history.sort(key=lambda x: x['date'], reverse=True)
             return history
         except Exception as e:
@@ -766,11 +854,11 @@ class UserDatabase:
             return []
 
     # ====================
-    # PAYOUT SYSTEM METHODS
+    # PAYOUT SYSTEM METHODS (FIXED)
     # ====================
 
     def create_payout_request(self, user_id: int, amount: float, method: str, details: str) -> Optional[str]:
-        """Create a new payout request"""
+        """Create a new payout request. Does NOT modify balances."""
         try:
             user = self.fetch_user(user_id)
             if not user:
@@ -795,17 +883,8 @@ class UserDatabase:
                 'proof_file_id': None
             }
             
-            # Update user's pending balance (move from available to pending payout)
-            current_pending = user.get('affiliate_pending', 0.0)
-            current_available = user.get('affiliate_available', 0.0)
-            
-            user['affiliate_pending'] = current_pending - amount
-            user['affiliate_available'] = current_available - amount
-            
-            self.users[str(user_id)] = user
-            self.db['users'] = self.users
+            # Do NOT touch affiliate_pending/available here – they are derived from commissions.
             self.db['payouts'] = self.payouts
-            
             self.mark_changed()
             
             logger.info(f"Payout request created: {payout_id} for user {user_id}, amount: {amount}")
@@ -815,36 +894,11 @@ class UserDatabase:
             return None
 
     def mark_payout_paid(self, payout_id: str) -> bool:
-        """Mark a payout as paid"""
-        try:
-            if payout_id not in self.payouts:
-                return False
-            
-            payout = self.payouts[payout_id]
-            user_id = payout['user_id']
-            
-            # Update payout status
-            self.payouts[payout_id]['status'] = 'paid'
-            self.payouts[payout_id]['processed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Update user's paid amount
-            user = self.fetch_user(user_id)
-            if user:
-                current_paid = user.get('affiliate_paid', 0.0)
-                user['affiliate_paid'] = current_paid + payout['amount']
-                
-                self.users[str(user_id)] = user
-                self.db['users'] = self.users
-            
-            self.db['payouts'] = self.payouts
-            self.mark_changed()
-            return True
-        except Exception as e:
-            logger.error(f"Error marking payout paid: {e}")
-            return False
+        """Mark a payout as paid (without proof) – also marks commissions as paid."""
+        return self.mark_payout_paid_with_proof(payout_id, proof_file_id=None)
 
-    def mark_payout_paid_with_proof(self, payout_id: str, proof_file_id: str) -> bool:
-        """Mark a payout as paid with proof and reset affiliate balance"""
+    def mark_payout_paid_with_proof(self, payout_id: str, proof_file_id: str = None) -> bool:
+        """Mark a payout as paid with proof, mark all pending commissions as paid, and recalc balance."""
         try:
             if payout_id not in self.payouts:
                 return False
@@ -852,58 +906,58 @@ class UserDatabase:
             payout = self.payouts[payout_id]
             user_id = payout['user_id']
             
-            # Update payout status
+            # Mark all pending commissions for this affiliate as paid
+            updated_any = False
+            for comm_id, comm in self.commissions.items():
+                if str(comm['affiliate_id']) == str(user_id) and comm.get('status') == 'pending':
+                    comm['status'] = 'paid'
+                    comm['paid_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    updated_any = True
+                    
+                    # Also update the user's commission_history entry (if present)
+                    affiliate = self.fetch_user(user_id)
+                    if affiliate and 'commission_history' in affiliate:
+                        for entry in affiliate['commission_history']:
+                            if (entry.get('referral_id') == comm['user_id'] and 
+                                entry.get('amount') == comm['amount'] and
+                                entry.get('date') == comm['date']):
+                                entry['status'] = 'paid'
+                                break
+                        self.users[str(user_id)] = affiliate
+            
+            if not updated_any:
+                logger.warning(f"No pending commissions found for affiliate {user_id} when processing payout {payout_id}")
+            
+            # Update payout record
             self.payouts[payout_id]['status'] = 'paid'
             self.payouts[payout_id]['processed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            self.payouts[payout_id]['proof_file_id'] = proof_file_id
+            if proof_file_id:
+                self.payouts[payout_id]['proof_file_id'] = proof_file_id
             
-            # Update user's paid amount and reset pending balance
-            user = self.fetch_user(user_id)
-            if user:
-                current_paid = user.get('affiliate_paid', 0.0)
-                user['affiliate_paid'] = current_paid + payout['amount']
-                
-                # Reset pending and available balances to zero
-                user['affiliate_pending'] = 0.0
-                user['affiliate_available'] = max(0.0, user.get('affiliate_earnings', 0.0) - user['affiliate_paid'])
-                
-                self.users[str(user_id)] = user
-                self.db['users'] = self.users
+            # Recalculate affiliate balances from commissions (resets pending/available to zero if all paid)
+            self.recalculate_affiliate_balance(user_id)
             
+            self.db['commissions'] = self.commissions
             self.db['payouts'] = self.payouts
             self.mark_changed()
             
-            logger.info(f"Payout {payout_id} marked as paid with proof, user {user_id} balance reset")
+            logger.info(f"Payout {payout_id} marked as paid, all pending commissions for user {user_id} set to paid.")
             return True
         except Exception as e:
             logger.error(f"Error marking payout paid with proof: {e}")
             return False
 
     def reject_payout_request(self, payout_id: str) -> bool:
-        """Reject a payout request"""
+        """Reject a payout request. Does NOT modify balances because commissions remain pending."""
         try:
             if payout_id not in self.payouts:
                 return False
-            
-            payout = self.payouts[payout_id]
-            user_id = payout['user_id']
             
             # Update payout status
             self.payouts[payout_id]['status'] = 'rejected'
             self.payouts[payout_id]['processed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Return amount to user's available balance
-            user = self.fetch_user(user_id)
-            if user:
-                current_available = user.get('affiliate_available', 0.0)
-                current_pending = user.get('affiliate_pending', 0.0)
-                
-                user['affiliate_available'] = current_available + payout['amount']
-                user['affiliate_pending'] = current_pending + payout['amount']
-                
-                self.users[str(user_id)] = user
-                self.db['users'] = self.users
-            
+            # No need to modify affiliate balances – commissions are still pending.
             self.db['payouts'] = self.payouts
             self.mark_changed()
             return True
@@ -935,7 +989,7 @@ class UserDatabase:
         return sorted(payouts, key=lambda x: x['request_date'], reverse=True)
 
     # ====================
-    # ADMIN MANAGEMENT METHODS
+    # ADMIN MANAGEMENT METHODS (unchanged except where needed)
     # ====================
 
     def get_all_affiliates(self) -> List[Dict]:
@@ -1022,7 +1076,7 @@ class UserDatabase:
             # Calculate conversion rate
             active_referrals = 0
             for referral in self.referrals.values():
-                if referral['has_subscribed']:
+                if referral.get('has_subscribed', False):
                     active_referrals += 1
             
             conversion_rate = (active_referrals / len(self.referrals) * 100) if self.referrals else 0.0
@@ -1081,42 +1135,39 @@ class UserDatabase:
         ]
 
     def get_commission_summary(self, user_id: int) -> Dict:
-        """Get commission summary for a user"""
-        try:
-            user = self.fetch_user(user_id)
-            if not user or not user.get('is_affiliate'):
-                return {}
-            
-            # Calculate monthly earnings
-            monthly_earnings = {}
-            for commission in self.commissions.values():
-                if str(commission['affiliate_id']) == str(user_id):
-                    month = commission['date'][:7]  # YYYY-MM
-                    if month not in monthly_earnings:
-                        monthly_earnings[month] = 0.0
-                    monthly_earnings[month] += commission['amount']
-            
-            # Get top earning plans
-            plan_earnings = {}
-            for commission in self.commissions.values():
-                if str(commission['affiliate_id']) == str(user_id):
-                    plan_key = f"{commission['plan_type']}_{commission.get('vip_duration', '')}"
-                    if plan_key not in plan_earnings:
-                        plan_earnings[plan_key] = 0.0
-                    plan_earnings[plan_key] += commission['amount']
-            
-            return {
-                'total_earnings': user.get('affiliate_earnings', 0.0),
-                'total_paid': user.get('affiliate_paid', 0.0),
-                'pending_payout': user.get('affiliate_pending', 0.0),
-                'available_balance': user.get('affiliate_available', 0.0),
-                'monthly_earnings': monthly_earnings,
-                'plan_earnings': plan_earnings,
-                'referral_count': user.get('referral_count', 0)
-            }
-        except Exception as e:
-            logger.error(f"Error getting commission summary for {user_id}: {e}")
+        """Get commission summary for a user (uses recalc to be safe)"""
+        self.recalculate_affiliate_balance(user_id)
+        user = self.fetch_user(user_id)
+        if not user or not user.get('is_affiliate'):
             return {}
+        
+        # Calculate monthly earnings
+        monthly_earnings = {}
+        for commission in self.commissions.values():
+            if str(commission['affiliate_id']) == str(user_id):
+                month = commission['date'][:7]  # YYYY-MM
+                if month not in monthly_earnings:
+                    monthly_earnings[month] = 0.0
+                monthly_earnings[month] += commission['amount']
+        
+        # Get top earning plans
+        plan_earnings = {}
+        for commission in self.commissions.values():
+            if str(commission['affiliate_id']) == str(user_id):
+                plan_key = f"{commission['plan_type']}_{commission.get('vip_duration', '')}"
+                if plan_key not in plan_earnings:
+                    plan_earnings[plan_key] = 0.0
+                plan_earnings[plan_key] += commission['amount']
+        
+        return {
+            'total_earnings': user.get('affiliate_earnings', 0.0),
+            'total_paid': user.get('affiliate_paid', 0.0),
+            'pending_payout': user.get('affiliate_pending', 0.0),
+            'available_balance': user.get('affiliate_available', 0.0),
+            'monthly_earnings': monthly_earnings,
+            'plan_earnings': plan_earnings,
+            'referral_count': user.get('referral_count', 0)
+        }
 
     def get_database_stats(self) -> Dict:
         """Get database statistics"""
