@@ -5515,7 +5515,7 @@ def show_all_referrals(uid: int, message_id: int = None):
             for i, referral in enumerate(referrals[:20], 1):  # Limit to 20
                 user_id = referral['user_id']
                 status = "✅ Active" if referral.get('has_subscribed') else "⏳ Pending"
-                earned = f"₦{referral.get('commission_earned', 0):,.2f}" if referral.get('commission_earned') else "₦0"
+                earned = f"₦{referral.get('total_commission', 0):,.2f}" if referral.get('commission_earned') else "₦0"
                 
                 text += f"{i}. ID: {user_id} - {status} - Earned: {earned}\n"
             
